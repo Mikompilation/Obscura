@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+Extractor/cmake-build-debug/
+
+Extractor/cmake-build-release/
