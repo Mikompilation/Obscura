@@ -2,6 +2,7 @@
 #include "Constants.h"
 #include "ZeroFileType.h"
 #include "deless.h"
+#include <cstring>
 
 IsoHandler::Extractor::Extractor(const char *isoFile, const char *outputFolder)
 {
