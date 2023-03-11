@@ -1,29 +1,39 @@
 #pragma once
 
+#include <cstdint>
+
+template<typename T>
+T* RelOffsetToPtr(const void* ptr, const int offset)
+{
+#if INTPTR_MAX == INT64_MAX
+    return (T*)((int64_t )ptr + offset);
+#elif INTPTR_MAX == INT32_MAX
+    return (T*)((int)ptr + (int)offset);
+#endif
+}
+
 typedef unsigned int uint;
 typedef unsigned char byte;
-typedef unsigned short word;
+typedef unsigned char uchar;
 
-struct LESS {
-  uint TOTAL_SIZE;
-  byte sign[4];
-  uint UNK;
-  uint CHUNKS;
-  uint DATA_OFFSET;
-  uint UNK2;
-  uint ZERO;
-  uint TOTAL_ZSIZE;
+struct ENCODE_DIV_SECTION {
+    short int type;
+    short unsigned int size;
 };
 
-struct chunk {
-  word SKIP;
-  word CHUNK_ZSIZE;
-
-  chunk() : SKIP(1), CHUNK_ZSIZE(0) {}
+struct CMP_HEADER {
+    int size;
+    int ext;
+    int div_size;
+    int div_num;
+    int data_offset;
+    int div_p;
+    int mapping;
+    int cmp_size;
 };
 
 void Decompress(const char *source, const char *target);
-void lzss_set_window(byte *window, int window_size, int init_chr);
-int unlzss(byte *src, int srclen, byte *dst, int dstlen, byte *parameters);
-
+void CMP_DecodeOne(CMP_HEADER *header, int no, size_t from_adrs, size_t to_adrs);
+void SlideDecode(uchar *base, uchar *addrs, int size);
+uint GetAlignUp(uint a,int power);
 

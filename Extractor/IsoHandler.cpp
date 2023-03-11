@@ -157,7 +157,6 @@ void IsoHandler::DecompressFile(std::string file)
   Decompress(initialFile.c_str(), targetFile.c_str());
 
   std::filesystem::remove(initialFile);
-
   std::filesystem::rename(targetFile, initialFile);
 }
 
