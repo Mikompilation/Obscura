@@ -24,86 +24,84 @@ uint GetAlignUp(uint a, int power) {
 }
 
 void SlideDecode(uchar *base, uchar *addrs, int size) {
+    byte rest;
     byte r;
-    byte c;
     uint flags;
-    int j;
-    uint i;
-    uint rest;
+    int i;
+    uint k;
+    uint c;
     uchar textbuf[4113];
 
-    j = 0xfed;
+    for (i = 0; i < 0xfee; i++) {
+        textbuf[i] = '\0';
+    }
 
-    do {
-        textbuf[j] = '\0';
-        j -= 1;
-    } while (-1 < j);
-
-    i = 0xfee;
-    rest = 0;
+    k = 0xfee;
+    c = 0;
 
     while (true) {
         while (true) {
-            flags = rest >> 1;
+            flags = c >> 1;
 
             if ((flags & 0x100) == 0) {
-                c = *base;
-                base += 1;
+                r = *base;
+                base = base + 1;
 
                 if (size == 0) {
                     return;
                 }
 
-                flags = c | 0xffffff00;
+                flags = r | 0xffffff00;
                 size -= 1;
             }
 
-            rest = flags & 0xffff;
+            c = flags & 0xffff;
 
             if ((flags & 1) == 0) {
                 break;
             }
 
-            c = *base;
+            r = *base;
             base = base + 1;
 
             if (size == 0) {
                 return;
             }
 
-            textbuf[i] = c;
+            textbuf[k] = r;
             size -= 1;
-            *addrs = c;
-            addrs += 1;
-            i = i + 1 & 0xfff;
+            *addrs = r;
+            addrs = addrs + 1;
+            k = k + 1 & 0xfff;
         }
 
-        c = *base;
+        r = *base;
 
         if (size == 0) {
             break;
         }
 
-        r = base[1];
-        base += 2;
+        rest = base[1];
+        base = base + 2;
 
         if (size == 1) {
             return;
         }
 
         size -= 2;
-        j = 0;
+        i = 0;
 
         do {
-            flags = ((uint) c | (r & 0xf0) << 4) + j;
-            j += 1;
-            i = i + 1 & 0xfff;
-            textbuf[i] = textbuf[flags & 0xfff];
+            flags = ((uint) r | (rest & 0xf0) << 4) + i;
+            *(textbuf + k) = textbuf[flags & 0xfff];
             *addrs = textbuf[flags & 0xfff];
-            addrs += 1;
-        } while (j <= (int) ((r & 0xf) + 2));
+            k = k + 1 & 0xfff;
+            addrs = addrs + 1;
+            i += 1;
+        } while (i <= (int) ((rest & 0xf) + 2));
     }
 }
+
 
 int CMP_Decode(CMP_HEADER *header, void *decode_buf) {
     int no = 0;
