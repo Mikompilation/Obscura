@@ -40,3 +40,7 @@ Extractor/cmake-build-release/
 cmake-build-debug/
 
 cmake-build-release/
+
+.idea/
+
+.DS_Store

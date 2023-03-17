@@ -33,7 +33,7 @@ struct CMP_HEADER {
 };
 
 void Decompress(const char *source, const char *target);
-void CMP_DecodeOne(CMP_HEADER *header, int no, size_t from_adrs, size_t to_adrs);
+void CMP_DecodeOne(CMP_HEADER *header, int no, int64_t from_adrs, int64_t to_adrs);
 void SlideDecode(uchar *base, uchar *addrs, int size);
 uint GetAlignUp(uint a,int power);
 

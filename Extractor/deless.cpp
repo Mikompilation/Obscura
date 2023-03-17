@@ -3,14 +3,10 @@
 #include <fstream>
 
 char *ReadFullFile(const char *filename) {
-    char *buffer;
     std::ifstream infile(filename, std::ios::binary);
+    auto length = std::filesystem::file_size(filename);
 
-    infile.seekg(0, std::ios::end);
-    size_t length = infile.tellg();
-    infile.seekg(0, std::ios::beg);
-
-    buffer = new char[length];
+    char *buffer = new char[length];
 
     infile.read(buffer, length);
 
@@ -20,7 +16,7 @@ char *ReadFullFile(const char *filename) {
 }
 
 uint GetAlignUp(uint a, int power) {
-    return (a + ~(-1 << (power & 0x1fU)) >> (power & 0x1fU)) << (power & 0x1fU);
+    return ((a + ~(-1 << (power & 0x1fU))) >> (power & 0x1fU)) << (power & 0x1fU);
 }
 
 void SlideDecode(uchar *base, uchar *addrs, int size) {
@@ -102,24 +98,25 @@ void SlideDecode(uchar *base, uchar *addrs, int size) {
     }
 }
 
-
 int CMP_Decode(CMP_HEADER *header, void *decode_buf) {
-    int no = 0;
+    if (0 >= header->div_num) {
+        return header->size;
+    }
+
+    auto div_p = RelOffsetToPtr<ENCODE_DIV_SECTION>(header, header->div_p);
     int offset = 0;
 
-    if (0 < header->div_num) {
-        do {
-            CMP_DecodeOne(header, no, (size_t) RelOffsetToPtr<ENCODE_DIV_SECTION>(header, header->data_offset + offset),
-                          (size_t) decode_buf);
-            decode_buf = RelOffsetToPtr<void>(decode_buf, header->div_size);
-            offset += GetAlignUp(RelOffsetToPtr<ENCODE_DIV_SECTION>(header, header->div_p)[no].size, 4);
-            no += 1;
-        } while (no < header->div_num);
+    for (auto no = 0; no < header->div_num; no++) {
+        auto encode_section = (int64_t) RelOffsetToPtr<ENCODE_DIV_SECTION>(header, header->data_offset + offset);
+        CMP_DecodeOne(header, no, encode_section, (int64_t) decode_buf);
+        decode_buf = RelOffsetToPtr<void>(decode_buf, header->div_size);
+        offset += GetAlignUp(div_p[no].size, 4);
     }
+
     return header->size;
 }
 
-void CMP_DecodeOne(CMP_HEADER *header, int no, size_t from_adrs, size_t to_adrs) {
+void CMP_DecodeOne(CMP_HEADER *header, int no, int64_t from_adrs, int64_t to_adrs) {
     auto div_section = &RelOffsetToPtr<ENCODE_DIV_SECTION>(header, header->div_p)[no];
 
     if (div_section->type == 1) {
@@ -137,8 +134,7 @@ void Decompress(const char *source, const char *target) {
 
     CMP_Decode((CMP_HEADER *) src, dst);
 
-    std::fstream file;
-    file.open(target, std::ios::app | std::ios::binary);
+    std::fstream file(target, std::ios::app | std::ios::binary);
     file.write(dst, header->size);
     file.close();
 
