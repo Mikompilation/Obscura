@@ -1,6 +1,7 @@
 #include "deless.h"
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 
 char *ReadFullFile(const char *filename) {
     std::ifstream infile(filename, std::ios::binary);
