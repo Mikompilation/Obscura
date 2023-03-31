@@ -64,8 +64,8 @@ void ConvertSgdMeshToIglMesh(Mesh mesh, igl::opengl::ViewerData *viewerData) {
 void DrawTriangleMeshes(std::vector<Mesh> meshes) {
     for (auto mesh: meshes) {
         meshes_name.insert(meshes_name.end(), mesh.mesh_name.begin(), mesh.mesh_name.end());
-        viewer.append_mesh();
         ConvertSgdMeshToIglMesh(mesh, &viewer.data());
+        viewer.append_mesh();
     }
 
     viewer.core().lighting_factor = 1.0f;

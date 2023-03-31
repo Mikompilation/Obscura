@@ -49,8 +49,7 @@ void DisplayFF2Model(const char *filename) {
         sgdCurr = (SGDFILEHEADER *) mdlPak;
         sgdRemap(sgdCurr);
         HandleProcUnit(sgdCurr);
-    }
-    else {
+    } else {
         for (auto i = 0; i < mdlPak->pack_num; i++) {
             sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
             sgdRemap(sgdCurr);
