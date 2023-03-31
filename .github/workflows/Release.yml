@@ -41,9 +41,9 @@ jobs:
         run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_STATIC=${{env.BUILD_STATIC}}
 
       - name: Build
-        #cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target ModelConverter
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target Extractor
+          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target ModelConverter
 
       - name: Zip Windows App
         if: ${{ matrix.sys.os == 'windows-latest' }}
