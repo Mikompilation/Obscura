@@ -31,7 +31,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Install Dependencies
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.sys.os == 'ubuntu-latest' }}
         run: |
           sudo apt install zip libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev
           sudo apt update
