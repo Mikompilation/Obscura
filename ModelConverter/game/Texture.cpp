@@ -1,0 +1,90 @@
+#include "Texture.h"
+
+Texture *CreateTextureFromRawData(int width, int height, void *data)
+{
+  if (width <= 0 || height <= 0 || data == nullptr)
+  {
+    return nullptr;
+  }
+
+  auto texture = new Texture(width, height, data);
+  auto rawPixel = (unsigned int*) data;
+
+  struct RGBA
+  {
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+    unsigned char a;
+  };
+
+  for (auto i = 0; i < height; i++)
+  {
+    for (auto k = 0; k < width; k++)
+    {
+      auto pixel = (RGBA*) &rawPixel[(i * width + k)];
+      texture->AddPixel(k, height - 1 - i, pixel->r, pixel->g, pixel->b, pixel->a);
+    }
+  }
+
+  return texture;
+}
+
+Texture::Texture(int width, int height, void* rawData)
+{
+  this->Width = width;
+  this->Height = height;
+  this->RawData = rawData;
+  this->SetImageDimensions();
+}
+
+void Texture::SetImageDimensions()
+{
+  this->R.resize(this->Width, this->Height);
+  this->G.resize(this->Width, this->Height);
+  this->B.resize(this->Width, this->Height);
+  this->A.resize(this->Width, this->Height);
+}
+
+void Texture::AddPixel(int x, int y, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+  this->R(x, y) = r;
+  this->G(x, y) = g;
+  this->B(x, y) = b;
+  this->A(x, y) = a;
+}
+
+int Texture::GetWidth()
+{
+  return this->Width;
+}
+
+int Texture::GetHeight()
+{
+  return this->Height;
+}
+
+Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> Texture::GetRed()
+{
+  return this->R;
+}
+
+Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> Texture::GetGreen()
+{
+  return this->G;
+}
+
+Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> Texture::GetBlue()
+{
+  return this->B;
+}
+
+Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> Texture::GetAlpha()
+{
+  return this->A;
+}
+
+void *Texture::GetRawData()
+{
+  return this->RawData;
+}
