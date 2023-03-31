@@ -4,7 +4,6 @@
 #include "igl/opengl/glfw/imgui/ImGuiPlugin.h"
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/combine.h>
-#include <assimp/scene.h>
 
 igl::opengl::glfw::Viewer viewer;
 igl::opengl::glfw::imgui::ImGuiPlugin plugin;
@@ -106,21 +105,6 @@ void InitVisualizer() {
             viewer.selected_data_index = idx_choice;
         }
     };
-
-    /*
-    GLuint my_image_texture = 0;
-    int my_image_width = 0;
-    int my_image_height = 0;
-    menu.callback_draw_custom_window = [&]() {
-      if (ImGui::CollapsingHeader("Texture Viewer",
-                                  ImGuiTreeNodeFlags_DefaultOpen))
-      {
-        LoadTextureFromFile(texture, &my_image_texture, &my_image_width, &my_image_height);
-        ImGui::Image((void *) (intptr_t) my_image_texture,
-                     ImVec2(my_image_width, my_image_height));
-      }
-    };
-     */
 }
 
 void RunVisualizer() {
@@ -128,7 +112,5 @@ void RunVisualizer() {
 }
 
 void ExportMdl(std::vector<Mesh> meshes, std::string filename) {
-    auto root = new aiNode();
-
     viewer.save_mesh_to_file(filename + ".obj");
 }
