@@ -72,7 +72,7 @@ void IsoHandler::Extractor::Extract()
     return;
   }
 
-  ZeroFileType::Zero2File *fileHd = (ZeroFileType::Zero2File *) ReadRangeFile(
+  auto *fileHd = (ZeroFileType::Zero2File *) ReadRangeFile(
       this->_region.FileTableStartAddress,
       this->_region.NumFiles * sizeof(ZeroFileType::Zero2File));
 
@@ -90,7 +90,7 @@ void IsoHandler::Extractor::Extract()
     printf("Extracting %d/%d %s\n", i, this->_region.NumFiles - 1,
            outputFile.c_str());
 
-    ZeroFileType::FileType fileStatus =
+    auto fileStatus =
         (ZeroFileType::FileType)(fileHd[i].info & 0b00000011);
 
     // Some files index are bugged and have a type File but with a size of 0 bytes

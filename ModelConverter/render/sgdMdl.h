@@ -19,8 +19,6 @@ T* RelOffsetToPtr(const void* ptr, const int offset)
 }
 
 void DisplayFF2Model(const char* filename);
-void DisplayFF2Map(const char *filename);
-void DisplayPK2(const char *filename);
 void HandleProcUnit(SGDFILEHEADER *sgd);
 void SgSortUnitPrim(SGDPROCUNITHEADER *pHead);
 void HandleVUVNDataBlock(SGDPROCUNITHEADER* pHead);
