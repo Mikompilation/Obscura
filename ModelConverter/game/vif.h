@@ -35,6 +35,55 @@ struct qword
     u_char a15;
 };
 
+typedef struct {
+    long unsigned int ZBP : 9;
+    long unsigned int pad09 : 15;
+    long unsigned int PSM : 4;
+    long unsigned int pad28 : 4;
+    long unsigned int ZMSK : 1;
+    long unsigned int pad33 : 31;
+} sceGsZbuf;
+
+typedef struct {
+    long unsigned int SBP : 14;
+    long unsigned int pad14 : 2;
+    long unsigned int SBW : 6;
+    long unsigned int pad22 : 2;
+    long unsigned int SPSM : 6;
+    long unsigned int pad30 : 2;
+    long unsigned int DBP : 14;
+    long unsigned int pad46 : 2;
+    long unsigned int DBW : 6;
+    long unsigned int pad54 : 2;
+    long unsigned int DPSM : 6;
+    long unsigned int pad62 : 2;
+} sceGsBitbltbuf;
+
+typedef struct {
+    long unsigned int SSAX : 11;
+    long unsigned int pad11 : 5;
+    long unsigned int SSAY : 11;
+    long unsigned int pad27 : 5;
+    long unsigned int DSAX : 11;
+    long unsigned int pad43 : 5;
+    long unsigned int DSAY : 11;
+    long unsigned int DIR : 2;
+    long unsigned int pad61 : 3;
+} sceGsTrxpos;
+
+typedef struct {
+    long unsigned int RRW : 12;
+    long unsigned int pad12 : 20;
+    long unsigned int RRH : 12;
+    long unsigned int pad44 : 20;
+} sceGsTrxreg;
+
+typedef struct {
+    long unsigned int XDR : 2;
+    long unsigned int pad01 : 30;
+    long unsigned int pad02 : 32;
+} sceGsTrxdir;
+
 typedef struct { // 0x10
     /// Repeat count (GS primitive data size)
     ///     PACKED mode NREG x NLOOP(qword)
@@ -116,6 +165,19 @@ typedef struct { // 0x10
     long unsigned int REGS15 : 4;
 } sceGifTag;
 
+typedef struct {
+    sceGifTag giftag0;
+    sceGsBitbltbuf bitbltbuf;
+    long int bitbltbufaddr;
+    sceGsTrxpos trxpos;
+    long int trxposaddr;
+    sceGsTrxreg trxreg;
+    long int trxregaddr;
+    sceGsTrxdir trxdir;
+    long int trxdiraddr;
+    sceGifTag giftag1;
+} sceGsLoadImage;
+
 enum VIFCodeType : unsigned int
 {
     NOP = 0b0000000,
@@ -152,7 +214,7 @@ struct G3DVIF1CODE_UNPACK {
 struct G3DVIF1CODE_DIRECT {
     /*   0 */ unsigned int size : 16;
     /*   2 */ unsigned int num : 8;
-    /*   3 */ VIFCodeType  cmd : 7;
+    /*   3 */ unsigned int  cmd : 7;
     /*   3 */ unsigned int irq : 1;
 };
 

@@ -9,7 +9,6 @@ typedef unsigned int uint32;
 typedef unsigned char uint8;
 typedef unsigned int uint;
 typedef unsigned long long uint64;
-typedef unsigned long long sceGsLoadImage;
 typedef unsigned long long u8l;
 
 struct Vector2i {
@@ -162,19 +161,19 @@ struct _SGDVUMESHCOLORDATA
 };
 
 struct TRI2SIZEDATA {
-  /*   0 */ unsigned int uiMaxAddress;
-  /*   4 */ unsigned int uiMinAddress;
-  /*   8 */ unsigned int uiVRAMTexSize;
-  /*   c */ unsigned int uiMaxTbp;
-  /*  10 */ unsigned int uiPageSize;
+  unsigned int uiMaxAddress;
+  unsigned int uiMinAddress;
+  unsigned int uiVRAMTexSize;
+  unsigned int uiMaxTbp;
+  unsigned int uiPageSize;
 };
 
 struct SGDTRI2FILEHEADER {
-  /*   0 */ unsigned int uiVif1Code_NOP0;
-  /*   4 */ unsigned int uiVif1Code_NOP1;
-  /*   8 */ unsigned int uiVif1Code_FLUSH;
-  /*   c */ G3DVIF1CODE_DIRECT uiVif1Code_DIRECT;
-  /*  10 */ sceGsLoadImage gsli;
+  unsigned int uiVif1Code_NOP0;
+  unsigned int uiVif1Code_NOP1;
+  unsigned int uiVif1Code_FLUSH;
+  G3DVIF1CODE_DIRECT uiVif1Code_DIRECT;
+  sceGsLoadImage gsli;
 };
 
 struct SGDGSIMAGEDATA

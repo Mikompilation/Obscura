@@ -270,17 +270,27 @@ void HandleBoundingBoxDataBlock(SGDPROCUNITHEADER *pHead) {
 }
 
 void HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead) {
+    auto sgdGsImage = RelOffsetToPtr<SGDGSIMAGEDESC>(&pHead[1], pHead->TexDesc.iPaddingSize);
 }
 
 void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
-    return;
-    auto sgdTri2 = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
-    auto a = RelOffsetToPtr<Vector3i>(sgdTri2, 0x40);
-    const void *data = RelOffsetToPtr<void>(sgdTri2, 0x70);
-    auto filename = ((std::filesystem::current_path() / (std::to_string(image_id) + ".bmp")));
-    image_id++;
+    auto pTRI2HeadTop  = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
+    auto rTexDesc = &pHead->TexDesc;
 
-    stbi_write_bmp(filename.string().c_str(), a->x, a->y, 1, data);
+    for(auto i = 0; i < rTexDesc->iNumTexture; i++)
+    {
+
+
+        for (auto k = 1; k < 257; k++)
+        {
+            auto data = RelOffsetToPtr<void>(&pTRI2HeadTop[1], 0x10 * k);
+            auto filename = ((std::filesystem::current_path() / ".." / "picture" / ((std::to_string(k)) + "_" + (std::to_string(image_id) + ".bmp"))));
+            stbi_write_bmp(filename.string().c_str(), 32, 32, 3, data);
+        }
+
+        image_id++;
+        pTRI2HeadTop  = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+    }
 }
 
 void HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
