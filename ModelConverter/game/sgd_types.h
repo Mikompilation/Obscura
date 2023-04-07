@@ -100,7 +100,7 @@ enum ProcUnitType : int {
 };
 
 struct SGDVUMESHDATA {
-    qword qwVif1Code;
+    G3DVIF1CODE qwVif1Code[4];
     sceGifTag GifTag;
 };
 
@@ -147,7 +147,7 @@ struct SGDMESHVERTEXDATA_TYPE2F {
 };
 
 struct SGDVUVNDATA_PRESET {
-    unsigned int aui[10];
+    G3DVIF1CODE aui[10];
     union {
         SGDMESHVERTEXDATA_TYPE2 avt2[1];
         SGDMESHVERTEXDATA_TYPE2F vt2f;
@@ -300,7 +300,7 @@ struct SGDVUMESHPOINTNUM {
 };
 
 struct SGDVUMESHSTREGSET {
-  unsigned int auiVifCode[3];
+    G3DVIF1CODE auiVifCode[3];
 };
 
 struct SGDVUMESHTYPE {

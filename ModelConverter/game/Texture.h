@@ -9,6 +9,8 @@ class Texture{
   void AddPixel(int x, int y, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
   int GetWidth();
   int GetHeight();
+  int GetAddress();
+  int SetAddress(int address);
   void* GetRawData();
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> GetRed();
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> GetGreen();
@@ -17,6 +19,7 @@ class Texture{
  private:
   int Width;
   int Height;
+  int Address = 0;
   void* RawData;
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R, G, B, A;
   void SetImageDimensions();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/vif.h"
+
 typedef unsigned char uchar;
 typedef unsigned int uint;
 typedef unsigned short uint16;
@@ -48,8 +50,8 @@ struct TIM2_PICTUREHEADER
     uchar ImageColorType;
     uint16 ImageWidth;
     uint16 ImageHeight;
-    uint64 GsTex0;
-    uint64 GsTex1;
+    sceGsTex0 GsTex0;
+    sceGsTex1 GsTex1;
     uint GsFlags;
     uint GsTexClut;
 };

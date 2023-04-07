@@ -88,3 +88,11 @@ void *Texture::GetRawData()
 {
   return this->RawData;
 }
+
+int Texture::GetAddress() {
+    return this->Address;
+}
+
+int Texture::SetAddress(int address) {
+    return this->Address = address;
+}

@@ -33,14 +33,22 @@ void DisplayFF2Model(const char *filename) {
         for (auto i = 0; i < texturePak->pack_num; i++) {
             auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
 
-            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0) {
-                printf("Found broken model with badly alligned textures");
-                break;
+            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || Tim2CheckFileHeader(tim2) == false) {
+                printf("Found broken model with invalid textures");
+                continue;
             }
+
+            auto ph = (TIM2_PICTUREHEADER *) Tim2GetPictureHeader(tim2, 0);
 
             auto convertedTim2 = LoadTim2Texture(tim2);
             auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image);
+            img->SetAddress(ph->GsTex0.TBP0);
             textures.emplace_back(img);
+
+            auto filename = ((std::filesystem::current_path() / ".." / "picture" / (std::to_string(image_id) + ".png")));
+
+            stbi_write_png(filename.string().c_str(), convertedTim2->Width, convertedTim2->Height, 4, convertedTim2->image, 0);
+            image_id++;
         }
     }
 
@@ -49,7 +57,8 @@ void DisplayFF2Model(const char *filename) {
         sgdCurr = (SGDFILEHEADER *) mdlPak;
         sgdRemap(sgdCurr);
         HandleProcUnit(sgdCurr);
-    } else {
+    }
+    else {
         for (auto i = 0; i < mdlPak->pack_num; i++) {
             sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
             sgdRemap(sgdCurr);
@@ -60,9 +69,10 @@ void DisplayFF2Model(const char *filename) {
     auto index = 0;
     for (auto m: meshes) {
         if (index < textures.size()) {
-            m.second.textures.emplace_back(textures[index]);
+            //m.second.textures.emplace_back(textures[index]);
             vectorMeshes.emplace_back(m.second);
-        } else {
+        }
+        else {
             vectorMeshes.emplace_back(m.second);
         }
 
@@ -147,9 +157,10 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
     SGDVUMESHSTDATA *sgdMeshData;
 
-    if (pHead->VUMeshDesc.MeshType.FLAT == true && pHead->VUMeshDesc.MeshType.PRE == true) {
+    if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
         sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
-    } else {
+    }
+    else {
         /// For a mesh order is SGDVUMESHPOINTNUM -> SGDVUMESHSTREGSET -> SGDVUMESHSTDATA
         auto sgdVuMeshStRegSet = (SGDVUMESHSTREGSET *) &pMeshInfo[pHead->VUMeshDesc.ucNumMesh];
         sgdMeshData = (SGDVUMESHSTDATA *) &sgdVuMeshStRegSet->auiVifCode[3];
@@ -159,6 +170,9 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
     Mesh *mesh;
 
+
+    auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
+
     if (meshes.find(materialName) == meshes.end()) {
         meshes[materialName] = Mesh();
         mesh = &meshes[materialName];
@@ -167,6 +181,21 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
         mesh->ambient.push_back(pMaterial->vAmbient);
         mesh->specular.push_back(pMaterial->vSpecular);
         mesh->mesh_name.push_back(materialName);
+
+        for (auto v : textures)
+        {
+            if (v->GetAddress() == mesh_tex_reg->TBP0)
+            {
+                mesh->textures.push_back(v);
+                break;
+            }
+        }
+
+        if (mesh->textures.empty() && sgdMaterial->iMaterialIndex < textures.size())
+        {
+            mesh->textures.push_back(textures[sgdMaterial->iMaterialIndex]);
+        }
+
     } else {
         mesh = &meshes[materialName];
     }
@@ -182,7 +211,8 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
         if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
             numPoint = pVMCD->VifUnpack.NUM;
-        } else {
+        }
+        else {
             numPoint = pMeshInfo[i].uiPointNum;
         }
 
@@ -191,16 +221,19 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             Vector3 n{};
 
             /// VectorType == 0x5
+            /// MeshType == IMT_2
             if (pHead->VUMeshDesc.MeshType.NVL == true || pHead->VUMeshDesc.ucMeshType == iMT_2) {
                 HandleNVLMesh(offsetVertex + currPointIndex, v, n);
             }
-                /// VectorType == 0x6
+            /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED) {
                 HandleWeightedMesh(offsetVertex + currPointIndex, v, n);
-            } else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
+            }
+            /// MeshType == IMT_2F
+            else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
                 HandleFlatMesh(offsetVertex + currPointIndex, v, n);
             }
-                /// VectorType == 0x6
+            /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_UNIQUE) {
                 HandleUniqueMesh(offsetVertex + currPointIndex, v, n);
             }
@@ -229,13 +262,14 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             if (currPointIndex % 2 == 0) {
                 mesh->triangles.push_back(
                         {triangleOffset, triangleOffset + 1, triangleOffset + 2});
-            } else {
+            }
+            else {
                 mesh->triangles.push_back(
                         {triangleOffset + 1, triangleOffset, triangleOffset + 2});
             }
         }
 
-        sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(sgdMeshData, sizeof(SGDVUMESHST) * numPoint + 4);
+        sgdMeshData = (SGDVUMESHSTDATA*) &sgdMeshData->astData[numPoint];
 
         if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
             pVMCD = (_SGDVUMESHCOLORDATA *) &pVMCD->avColor[pVMCD->VifUnpack.NUM];
@@ -274,22 +308,40 @@ void HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead) {
 }
 
 void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
-    auto pTRI2HeadTop  = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
+    auto pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
     auto rTexDesc = &pHead->TexDesc;
 
-    for(auto i = 0; i < rTexDesc->iNumTexture; i++)
-    {
+    for (auto i = 0; i < rTexDesc->iNumTexture; i++) {
+        int image_h = pTRI2HeadTop->gsli.trxreg.RRH;
+        int image_w = pTRI2HeadTop->gsli.trxreg.RRW;
+        auto data_size = image_w * image_h;
+        auto data = RelOffsetToPtr<int8_t>(&pTRI2HeadTop[1], 0);
 
+        auto image_data = new std::vector<int8_t>(data_size * 4);
 
-        for (auto k = 1; k < 257; k++)
+        for(auto x = 0; x < image_w; x++)
         {
-            auto data = RelOffsetToPtr<void>(&pTRI2HeadTop[1], 0x10 * k);
-            auto filename = ((std::filesystem::current_path() / ".." / "picture" / ((std::to_string(k)) + "_" + (std::to_string(image_id) + ".bmp"))));
-            stbi_write_bmp(filename.string().c_str(), 32, 32, 3, data);
+            for(auto y = 0; y < image_h; y++)
+            {
+                auto image_offset = x + y * image_w;
+                image_data->data()[(image_offset * 4)+0] = data[image_offset+0];
+                image_data->data()[(image_offset * 4)+1] = data[image_offset+1];
+                image_data->data()[(image_offset * 4)+2] = data[image_offset+2];
+                image_data->data()[(image_offset * 4)+3] = data[image_offset+3];
+            }
         }
 
+        auto filename = ((std::filesystem::current_path() / ".." / "picture" / (std::to_string(image_id) + ".png")));
+
+        stbi_write_png(filename.string().c_str(), image_w, image_h, 4, image_data->data(), 0);
         image_id++;
-        pTRI2HeadTop  = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+
+        auto img = CreateTextureFromRawData(image_w, image_h, image_data->data());
+        img->SetAddress(pTRI2HeadTop->gsli.bitbltbuf.DBP);
+        textures.emplace_back(img);
+
+        pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
+                                                         pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
     }
 }
 
@@ -440,7 +492,7 @@ Vector3 &operator*(Vector3 &source, const float factor) {
 }
 
 Matrix4x4 MatrixTranspose(const Matrix4x4 m) {
-    Matrix4x4 outM;
+    Matrix4x4 outM{};
 
     outM.row1.x = m.row1.x;
     outM.row1.y = m.row2.x;

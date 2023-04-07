@@ -436,7 +436,7 @@ unsigned int Tim2GetTextureColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int mip
     return 0;
 }
 
-Tim2Converted *LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
+Tim2Converted * LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
 {
   auto ph = (TIM2_PICTUREHEADER *) Tim2GetPictureHeader(pTim2FileHeader, 0);
 
