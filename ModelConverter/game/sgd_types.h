@@ -1,8 +1,9 @@
 #pragma once
 #include "vif.h"
+#include "math/linalg.h"
 #include <string>
 
-#include <stdint.h>
+#include <cstdint>
 #include <cstring>
 
 typedef unsigned int uint32;
@@ -10,43 +11,6 @@ typedef unsigned char uint8;
 typedef unsigned int uint;
 typedef unsigned long long uint64;
 typedef unsigned long long u8l;
-
-struct Vector2i {
-  int x;
-  int y;
-};
-
-struct Vector2 {
-    float x;
-    float y;
-};
-
-struct Vector3 {
-    float x;
-    float y;
-    float z;
-};
-
-struct Vector3i {
-    int x;
-    int y;
-    int z;
-};
-
-struct Vector4 {
-    float x;
-    float y;
-    float z;
-    float w;
-};
-
-struct Matrix4x4 {
-    Vector4 row1;
-    Vector4 row2;
-    Vector4 row3;
-    Vector4 row4;
-};
-
 typedef Vector4 sceVu0FVECTOR;
 
 enum G3DLIGHTTYPE {

@@ -7,7 +7,8 @@ int main(int argc, const char *argv[])
     return -1;
   }
 
-  //DisplayPK2(argv[1]);
+  InitLogging();
+
   DisplayFF2Model(argv[1]);
 
   return 0;

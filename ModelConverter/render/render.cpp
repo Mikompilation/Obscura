@@ -108,7 +108,7 @@ void InitVisualizer() {
 }
 
 void RunVisualizer() {
-    viewer.launch(true, false, "FatalStack");
+    viewer.launch(true, false, "Model Extractor");
 }
 
 void ExportMdl(std::vector<Mesh> meshes, std::string filename) {

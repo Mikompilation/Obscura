@@ -1,5 +1,6 @@
 #include "packfile.h"
 #include "render/sgdMdl.h"
+#include "utils/utility.h"
 
 int64_t PakAlign128(int64_t address)
 {

@@ -8,6 +8,8 @@ igl_include(glfw)
 igl_include(imgui)
 igl_include(opengl)
 
+add_subdirectory(third-party)
+
 include_directories(./)
 
 add_executable(ModelConverter
@@ -34,8 +36,8 @@ add_executable(ModelConverter
         game/packfile.h
         game/packfile.cpp
         stb_write_image.h
-        )
+        game/Model.cpp game/Model.h math/linalg.cpp math/linalg.h utils/utility.cpp utils/utility.h)
 
-target_link_libraries(ModelConverter PRIVATE igl::glfw igl::imgui igl::opengl assimp)
+target_link_libraries(ModelConverter PRIVATE spdlog igl::glfw igl::imgui igl::opengl assimp)
 
 

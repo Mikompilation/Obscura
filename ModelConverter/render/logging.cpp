@@ -1,6 +1,6 @@
 #include "logging.h"
 
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 
 void PrintVectorInfo(Vector3 v3) {
@@ -9,13 +9,13 @@ void PrintVectorInfo(Vector3 v3) {
 }
 
 void PrintNewSGD(int sgdNum) {
-    printf("\n|---------------------|");
-    printf("\n|                     |");
-    printf("\n|    New SGD Header   |");
-    printf("\n|         %2d          |", sgdNum);
-    printf("\n|                     |");
-    printf("\n|                     |");
-    printf("\n|---------------------|");
+    programLogger->info("|---------------------|");
+    programLogger->info("|                     |");
+    programLogger->info("|    New SGD Header   |");
+    programLogger->info("|         {}          |", sgdNum);
+    programLogger->info("|                     |");
+    programLogger->info("|                     |");
+    programLogger->info("|---------------------|");
 }
 
 void PrintBlockInfo(SGDPROCUNITHEADER* pHead, SGDFILEHEADER* pSGDTop) {
@@ -23,17 +23,28 @@ void PrintBlockInfo(SGDPROCUNITHEADER* pHead, SGDFILEHEADER* pSGDTop) {
 
     switch (pHead->iCategory) {
     case VUVN:
-        partName = "VUVN Type: 0x" + std::to_string(pHead->VUVNDesc.ucVectorType);
 
-        PrintBlockTypeCategory(pHead->iCategory, partName.c_str());
+        programLogger->info("|---------------------|");
+        programLogger->info("|                     |");
+        programLogger->info("|                     |");
+        programLogger->info("|         {:02d}        |", VUVN);
+        programLogger->info("|   VUVN Type: {:#x}    |", pHead->VUVNDesc.ucVectorType);
+        programLogger->info("|                     |");
+        programLogger->info("|---------------------|");
+
         return;
     case MESH:
-        partName = "Mesh Type: 0x" + std::to_string(pHead->VUMeshDesc.ucMeshType);
 
-        PrintBlockTypeCategory(pHead->iCategory, partName.c_str());
+            programLogger->info("|---------------------|");
+            programLogger->info("|                     |");
+            programLogger->info("|                     |");
+            programLogger->info("|         {:02d}          |", MESH);
+            programLogger->info("|   MESH Type: {:#x}   |", pHead->VUMeshDesc.ucMeshType);
+            programLogger->info("|                     |");
+            programLogger->info("|---------------------|");
         return;
     case MATERIAL:
-        printf("\n----- New Sub Model Part -----");
+        programLogger->info("----- New Sub Model Part -----");
         partName = GetMaterialPtr(pSGDTop, pHead->VUMaterialDesc.pMat)->strTexName;
         break;
     case COORDINATE:
@@ -52,23 +63,23 @@ void PrintBlockInfo(SGDPROCUNITHEADER* pHead, SGDFILEHEADER* pSGDTop) {
 }
 
 void PrintBlockTypeCategory(int iCategory, const char* partName) {
-    printf("\n|---------------------|");
-    printf("\n|                     |");
-    printf("\n|                     |");
-    printf("\n|         %2d          |", iCategory);
-    printf("\n|   %11s    |", partName);
-    printf("\n|                     |");
-    printf("\n|---------------------|");
+    programLogger->info("|---------------------|");
+    programLogger->info("|                     |");
+    programLogger->info("|                     |");
+    programLogger->info("|         {:02d}          |", iCategory);
+    programLogger->info("|   {%=s11l}    |", partName);
+    programLogger->info("|                     |");
+    programLogger->info("|---------------------|");
 }
 
 void PrintBlockCategory(int iCategory, const char *partName) {
-    printf("\n|---------------------|");
-    printf("\n|                     |");
-    printf("\n|                     |");
-    printf("\n|         %2d          |", iCategory);
-    printf("\n|     %11s     |", partName);
-    printf("\n|                     |");
-    printf("\n|---------------------|");
+    programLogger->info("|---------------------|");
+    programLogger->info("|                     |");
+    programLogger->info("|                     |");
+    programLogger->info("|         {:02d}          |", iCategory);
+    programLogger->info("|     {}     |", partName);
+    programLogger->info("|                     |");
+    programLogger->info("|---------------------|");
 }
 
 void PrintPoint(float x, float y, float z) {
@@ -76,20 +87,37 @@ void PrintPoint(float x, float y, float z) {
 }
 
 void PrintEmptyBlock() {
-    printf("\n|---------------------|");
-    printf("\n|                     |");
-    printf("\n|                     |");
-    printf("\n|        EMPTY        |");
-    printf("\n|                     |");
-    printf("\n|                     |");
-    printf("\n|---------------------|\n");
+    programLogger->info("|---------------------|");
+    programLogger->info("|                     |");
+    programLogger->info("|                     |");
+    programLogger->info("|        EMPTY        |");
+    programLogger->info("|                     |");
+    programLogger->info("|                     |");
+    programLogger->info("|---------------------|");
 }
 
 void PrintBlockBeginning(int i) {
-    printf("\n----- Begin Block %4d -----", i);
+    programLogger->info("----- Begin Block {} -----", i);
 }
 
 void PrintBlockEnding(int i) {
-    printf("\n----- End   Block %4d -----\n", i);
+    programLogger->info("----- End   Block {} -----", i);
 }
+
+void InitLogging()
+{
+    spdlog::set_pattern("[%H:%M:%S] [%n] [%^%l%$] [thread %t] %v");
+
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+    sinks.push_back(
+            std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt"));
+
+    programLogger = std::make_shared<spdlog::logger>(
+            PROGRAM_LOGGER, begin(sinks), end(sinks));
+    programLogger->info("Setting up loggers");
+
+    spdlog::register_logger(programLogger);
+}
+
 

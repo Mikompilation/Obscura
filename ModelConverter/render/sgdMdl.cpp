@@ -5,6 +5,7 @@
 
 #include "stb_write_image.h"
 #include "tim2.h"
+#include "utils/utility.h"
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -34,7 +35,7 @@ void DisplayFF2Model(const char *filename) {
             auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
 
             if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || Tim2CheckFileHeader(tim2) == false) {
-                printf("Found broken model with invalid textures");
+                programLogger->critical("Found broken model with invalid textures");
                 continue;
             }
 
@@ -66,17 +67,8 @@ void DisplayFF2Model(const char *filename) {
         }
     }
 
-    auto index = 0;
     for (auto m: meshes) {
-        if (index < textures.size()) {
-            //m.second.textures.emplace_back(textures[index]);
-            vectorMeshes.emplace_back(m.second);
-        }
-        else {
-            vectorMeshes.emplace_back(m.second);
-        }
-
-        index += 1;
+        vectorMeshes.emplace_back(m.second);
     }
 
     InitVisualizer();
@@ -419,131 +411,4 @@ void HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
 SGDCOORDINATE *GetCurrentCoordinate() {
     return GetCoordinatePtr(sgdCurr) == nullptr ? GetCoordinatePtr(sgdTop)
                                                 : GetCoordinatePtr(sgdCurr);
-}
-
-uint *GetNextUnpackAddr(uint *prim) {
-    uint *puVar1;
-
-    do {
-        puVar1 = prim;
-        prim = puVar1 + 1;
-    } while ((*puVar1 & 0x60000000) != 0x60000000);
-    return puVar1;
-}
-
-void Vector2Clamp(Vector2 &v) {
-    if (v.x < 0.0f) {
-        v.x = 0.0f;
-    }
-
-    if (v.x > 1.0f) {
-        v.x = 1.0f;
-    }
-
-    if (v.y < 0.0f) {
-        v.y = 0.0f;
-    }
-
-    if (v.y > 1.0f) {
-        v.y = 1.0f;
-    }
-}
-
-void operator/=(Vector2 &v, float factor) {
-    v.x = v.x / factor;
-    v.y = v.y / factor;
-}
-
-void operator*=(Vector2 &v, float factor) {
-    v.x = v.x * factor;
-    v.y = v.y * factor;
-}
-
-Vector3 &operator+=(Vector3 &source, const Vector3 &target) {
-    source.x = source.x + target.x;
-    source.y = source.y + target.y;
-    source.z = source.z + target.z;
-
-    return source;
-}
-
-Vector3 &operator+(Vector3 &source, const Vector3 &target) {
-    source.x = source.x + target.x;
-    source.y = source.y + target.y;
-    source.z = source.z + target.z;
-
-    return source;
-}
-
-Vector3 &operator+=(Vector3 &source, const Vector4 *target) {
-    source.x = source.x + target->x;
-    source.y = source.y + target->y;
-    source.z = source.z + target->z;
-
-    return source;
-}
-
-Vector3 &operator*(Vector3 &source, const float factor) {
-    source.x *= factor;
-    source.y *= factor;
-    source.z *= factor;
-
-    return source;
-}
-
-Matrix4x4 MatrixTranspose(const Matrix4x4 m) {
-    Matrix4x4 outM{};
-
-    outM.row1.x = m.row1.x;
-    outM.row1.y = m.row2.x;
-    outM.row1.z = m.row3.x;
-    outM.row1.w = m.row4.x;
-
-    outM.row2.x = m.row1.y;
-    outM.row2.y = m.row2.y;
-    outM.row2.z = m.row3.y;
-    outM.row2.w = m.row4.y;
-
-    outM.row3.x = m.row1.z;
-    outM.row3.y = m.row2.z;
-    outM.row3.z = m.row3.z;
-    outM.row3.w = m.row4.z;
-
-    outM.row4.x = m.row1.w;
-    outM.row4.y = m.row2.w;
-    outM.row4.z = m.row3.w;
-    outM.row4.w = m.row4.w;
-
-    return outM;
-}
-
-Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat) {
-    Vector3 result = {0};
-
-    float x = v.x;
-    float y = v.y;
-    float z = v.z;
-
-    result.x = mat.row1.x * x + mat.row1.y * y + mat.row1.z * z + mat.row1.w;
-    result.y = mat.row2.x * x + mat.row2.y * y + mat.row2.z * z + mat.row2.w;
-    result.z = mat.row3.x * x + mat.row3.y * y + mat.row3.z * z + mat.row3.w;
-
-    return result;
-}
-
-char *ReadFullFile(const char *filename) {
-    char *buffer;
-    std::ifstream infile(filename, std::ios::binary);
-
-    infile.seekg(0, std::ios::end);
-    size_t length = infile.tellg();
-    infile.seekg(0, std::ios::beg);
-
-    buffer = new char[length];
-
-    infile.read(buffer, length);
-
-    infile.close();
-
-    return buffer;
 }
