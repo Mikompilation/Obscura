@@ -5,8 +5,6 @@
 #include "logging.h"
 #include "math/linalg.h"
 
-
-
 void DisplayFF2Model(const char* filename);
 void HandleProcUnit(SGDFILEHEADER *sgd);
 void SgSortUnitPrim(SGDPROCUNITHEADER *pHead);
