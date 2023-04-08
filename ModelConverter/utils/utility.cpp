@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <fstream>
 #include "utility.h"
-#include "render/logging.h"
+#include "logging.h"
 
 unsigned int *GetNextUnpackAddr(unsigned int *prim) {
     unsigned int *puVar1;

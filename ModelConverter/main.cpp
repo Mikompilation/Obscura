@@ -1,4 +1,5 @@
 #include "render/sgdMdl.h"
+#include "utils/logging.h"
 
 int main(int argc, const char *argv[])
 {

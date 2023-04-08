@@ -21,8 +21,8 @@ add_executable(ModelConverter
         render/tim2.h
         render/render.h
         render/render.cpp
-        render/logging.cpp
-        render/logging.h
+        utils/logging.cpp
+        utils/logging.h
         render/sgdMdl.cpp
         render/sgdMdl.h
         render/tim2.cpp
@@ -36,7 +36,12 @@ add_executable(ModelConverter
         game/packfile.h
         game/packfile.cpp
         stb_write_image.h
-        game/Model.cpp game/Model.h math/linalg.cpp math/linalg.h utils/utility.cpp utils/utility.h)
+        game/Model.cpp
+        game/Model.h
+        math/linalg.cpp
+        math/linalg.h
+        utils/utility.cpp
+        utils/utility.h)
 
 target_link_libraries(ModelConverter PRIVATE spdlog igl::glfw igl::imgui igl::opengl assimp)
 
