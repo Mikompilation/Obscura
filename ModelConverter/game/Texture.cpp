@@ -25,7 +25,7 @@ Texture *CreateTextureFromRawData(int width, int height, void *data, int address
     for (auto k = 0; k < width; k++)
     {
       auto pixel = (RGBA*) &rawPixel[(i * width + k)];
-      auto scaledAlpha = std::min((char) (255.0f * (pixel->a / 128.0f)), (char)0xFF);
+      auto scaledAlpha = (char) (255.0f * (pixel->a / 128.0f));
       texture->AddPixel(k, height - 1 - i, pixel->r, pixel->g, pixel->b, scaledAlpha);
     }
   }
