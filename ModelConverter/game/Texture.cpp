@@ -1,6 +1,6 @@
 #include "Texture.h"
 
-Texture *CreateTextureFromRawData(int width, int height, void *data)
+Texture *CreateTextureFromRawData(int width, int height, void *data, int address)
 {
   if (width <= 0 || height <= 0 || data == nullptr)
   {
@@ -8,6 +8,8 @@ Texture *CreateTextureFromRawData(int width, int height, void *data)
   }
 
   auto texture = new Texture(width, height, data);
+  texture->SetAddress(address);
+
   auto rawPixel = (unsigned int*) data;
 
   struct RGBA
@@ -23,7 +25,8 @@ Texture *CreateTextureFromRawData(int width, int height, void *data)
     for (auto k = 0; k < width; k++)
     {
       auto pixel = (RGBA*) &rawPixel[(i * width + k)];
-      texture->AddPixel(k, height - 1 - i, pixel->r, pixel->g, pixel->b, pixel->a);
+      auto scaledAlpha = std::min((char) (255.0f * (pixel->a / 128.0f)), (char)0xFF);
+      texture->AddPixel(k, height - 1 - i, pixel->r, pixel->g, pixel->b, scaledAlpha);
     }
   }
 

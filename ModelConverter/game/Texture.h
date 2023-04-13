@@ -25,4 +25,4 @@ class Texture{
   void SetImageDimensions();
 };
 
-Texture* CreateTextureFromRawData(int width, int height, void* data);
+Texture* CreateTextureFromRawData(int width, int height, void* data, int address = 0);

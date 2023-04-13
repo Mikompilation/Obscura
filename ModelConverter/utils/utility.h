@@ -17,5 +17,6 @@ T* RelOffsetToPtr(const void* ptr, const int offset)
 
 unsigned int * GetNextUnpackAddr(unsigned int *prim);
 char *ReadFullFile(const char *filename);
+void SaveImage(int width, int height, int numChannels, void *data);
 
 #endif //OBSCURA_UTILITY_H

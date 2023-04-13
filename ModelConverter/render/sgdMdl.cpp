@@ -1,12 +1,7 @@
 #include "sgdMdl.h"
 #include "game/packfile.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include "stb_write_image.h"
 #include "tim2.h"
 #include "utils/utility.h"
-#include <filesystem>
 #include <fstream>
 #include <vector>
 
@@ -18,7 +13,6 @@ SGDFILEHEADER *sgdCurr;
 SGDPROCUNITHEADER *s_ppuhVUVN;
 SGDCOORDINATEDESC *sgdCoordintate;
 SGDVUMATERIALDESC *sgdMaterial;
-int image_id = 0;
 
 void DisplayFF2Model(const char *filename) {
     auto pakFile = (PK2_HEAD *) ReadFullFile(filename);
@@ -34,22 +28,16 @@ void DisplayFF2Model(const char *filename) {
         for (auto i = 0; i < texturePak->pack_num; i++) {
             auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
 
-            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || Tim2CheckFileHeader(tim2) == false) {
+            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || !Tim2CheckFileHeader(tim2)) {
                 programLogger->critical("Found broken model with invalid textures");
                 continue;
             }
 
-            auto ph = (TIM2_PICTUREHEADER *) Tim2GetPictureHeader(tim2, 0);
+            auto ph = Tim2GetPictureHeader(tim2, 0);
 
             auto convertedTim2 = LoadTim2Texture(tim2);
-            auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image);
-            img->SetAddress(ph->GsTex0.TBP0);
+            auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image, ph->GsTex0.TBP0);
             textures.emplace_back(img);
-
-            auto filename = ((std::filesystem::current_path() / ".." / "picture" / (std::to_string(image_id) + ".png")));
-
-            stbi_write_png(filename.string().c_str(), convertedTim2->Width, convertedTim2->Height, 4, convertedTim2->image, 0);
-            image_id++;
         }
     }
 
@@ -307,30 +295,23 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
         int image_h = pTRI2HeadTop->gsli.trxreg.RRH;
         int image_w = pTRI2HeadTop->gsli.trxreg.RRW;
         auto data_size = image_w * image_h;
-        auto data = RelOffsetToPtr<int8_t>(&pTRI2HeadTop[1], 0);
 
-        auto image_data = new std::vector<int8_t>(data_size * 4);
+        auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
+        auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[data_size], sizeof(sceGsLoadImage));
+        auto image_data = new std::vector<unsigned int>(data_size);
 
         for(auto x = 0; x < image_w; x++)
         {
             for(auto y = 0; y < image_h; y++)
             {
                 auto image_offset = x + y * image_w;
-                image_data->data()[(image_offset * 4)+0] = data[image_offset+0];
-                image_data->data()[(image_offset * 4)+1] = data[image_offset+1];
-                image_data->data()[(image_offset * 4)+2] = data[image_offset+2];
-                image_data->data()[(image_offset * 4)+3] = data[image_offset+3];
+                auto index = image_color_index[image_offset];
+                image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, IDTEX8, RGBA32, 256, 0, index);
             }
         }
 
-        auto filename = ((std::filesystem::current_path() / ".." / "picture" / (std::to_string(image_id) + ".png")));
-
-        stbi_write_png(filename.string().c_str(), image_w, image_h, 4, image_data->data(), 0);
-        image_id++;
-
-        auto img = CreateTextureFromRawData(image_w, image_h, image_data->data());
-        img->SetAddress(pTRI2HeadTop->gsli.bitbltbuf.DBP);
-        textures.emplace_back(img);
+        SaveImage(image_w, image_h, 4, image_data->data());
+        textures.emplace_back(CreateTextureFromRawData(image_w, image_h, image_data->data(), pTRI2HeadTop->gsli.bitbltbuf.DBP));
 
         pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
                                                          pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
