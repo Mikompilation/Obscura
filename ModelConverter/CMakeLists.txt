@@ -41,7 +41,10 @@ add_executable(ModelConverter
         math/linalg.cpp
         math/linalg.h
         utils/utility.cpp
-        utils/utility.h)
+        utils/utility.h
+        game/Exporter.cpp
+        game/Exporter.h
+        )
 
 target_link_libraries(ModelConverter PRIVATE spdlog igl::glfw igl::imgui igl::opengl assimp)
 

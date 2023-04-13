@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <cstdio>
 #include "tim2.h"
 
 /// Checks if the header ID is valid
@@ -439,7 +439,7 @@ unsigned int Tim2GetClutColor(unsigned char* pClutData, TIM2_gattr_type colorTyp
 ///			Information about the color
 unsigned int Tim2GetTexel(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLevel, int x, int y)
 {
-    unsigned char* pImage = static_cast<unsigned char*>(Tim2GetImage(pTim2PictureHeader, mipMapLevel));
+    auto* pImage = static_cast<unsigned char*>(Tim2GetImage(pTim2PictureHeader, mipMapLevel));
 
     if (pImage == nullptr)
     {
@@ -480,6 +480,54 @@ unsigned int Tim2GetTexel(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLeve
 
     case IDTEX8:
         return ((u_int)pImage[t]);
+    }
+
+    return 0;
+}
+
+/// Get texel data
+/// Arguments
+///         pTim2PictureHeader:		TIM2 picture header
+///         x:	                    Texel X coord
+///         y:	                    Texel Y coord
+///         width:		            Width of image
+///         imageColorType:	        Image color type
+/// Returns
+///			Information about the color
+unsigned int Tim2GetTexel(unsigned char* pImage, int x, int y, int width, TIM2_gattr_type imageColorType)
+{
+    if (pImage == nullptr)
+    {
+        return 0;
+    }
+
+    auto t = x + y * width;
+
+    switch (imageColorType)
+    {
+        case RGBA16:
+            return (u_int)((pImage[t * 2 + 1] << 8) | pImage[t * 2]);
+
+        case RGB32:
+            return (u_int)((pImage[t * 3 + 2] << 16) | (pImage[t * 3 + 1] << 8) | pImage[t * 3]);
+
+        case RGBA32:
+            return (u_int)((pImage[t * 4 + 3] << 24) | (pImage[t * 4 + 2] << 16) | (pImage[t * 4 + 1] << 8) | pImage[t * 4]);
+
+        case IDTEX4:
+            if (x & 1)
+            {
+                return (u_int)(pImage[t / 2] >> 4);
+            }
+            else
+            {
+                return (u_int)(pImage[t / 2] & 0x0F);
+            }
+
+        case IDTEX8:
+            return ((u_int)pImage[t]);
+        case NO_CLUT:
+            break;
     }
 
     return 0;

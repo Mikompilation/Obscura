@@ -9,4 +9,3 @@ void DrawTriangleMeshes(std::vector<Mesh> meshes);
 void RunVisualizer();
 void InitVisualizer();
 void ConvertSgdMeshToIglMesh(Mesh mesh, igl::opengl::ViewerData* viewerData);
-void ExportMdl(std::vector<Mesh> meshes, std::string filename);

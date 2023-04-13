@@ -2,6 +2,7 @@
 #include "game/packfile.h"
 #include "tim2.h"
 #include "utils/utility.h"
+#include "game/Exporter.h"
 #include <fstream>
 #include <vector>
 
@@ -58,6 +59,10 @@ void DisplayFF2Model(const char *filename) {
     for (auto m: meshes) {
         vectorMeshes.emplace_back(m.second);
     }
+
+    auto file = std::filesystem::path(filename);
+
+    ExportMesh(vectorMeshes, std::filesystem::current_path() / file.filename().replace_extension(".obj"));
 
     InitVisualizer();
     DrawTriangleMeshes(vectorMeshes);
@@ -305,7 +310,7 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
             for(auto y = 0; y < image_h; y++)
             {
                 auto image_offset = x + y * image_w;
-                auto index = image_color_index[image_offset];
+                auto index = Tim2GetTexel(image_color_index, x, y, image_w, IDTEX8);
                 image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, IDTEX8, RGBA32, 256, 0, index);
             }
         }

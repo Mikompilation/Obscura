@@ -111,7 +111,3 @@ void InitVisualizer() {
 void RunVisualizer() {
     viewer.launch(true, false, "Model Extractor");
 }
-
-void ExportMdl(std::vector<Mesh> meshes, std::string filename) {
-    viewer.save_mesh_to_file(filename + ".obj");
-}

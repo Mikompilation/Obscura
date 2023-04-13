@@ -102,5 +102,6 @@ void* Tim2GetClut(TIM2_PICTUREHEADER* pTim2PictureHeader);
 unsigned int Tim2GetClutColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int clut, int index);
 unsigned int Tim2GetClutColor(unsigned char* pClutData, TIM2_gattr_type colorType, TIM2_gattr_type clutColorType, int clutColorsCount, int clut, unsigned int index);
 unsigned int Tim2GetTexel(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLevel, int x, int y);
+unsigned int Tim2GetTexel(unsigned char* pImage, int x, int y, int width, TIM2_gattr_type imageColorType);
 unsigned int Tim2GetTextureColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLevel, int clut, int x, int y);
 Tim2Converted *LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader);
