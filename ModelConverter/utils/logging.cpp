@@ -49,6 +49,24 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
             programLogger->info("|                     |");
             programLogger->info("|---------------------|");
             break;
+        case GS_IMAGE:
+            programLogger->info("|---------------------|");
+            programLogger->info("|                     |");
+            programLogger->info("|                     |");
+            programLogger->info("|         {:02d}          |", GS_IMAGE);
+            programLogger->info("|     GS Image Data   |");
+            programLogger->info("|                     |");
+            programLogger->info("|---------------------|");
+            break;
+        case TRI2:
+            programLogger->info("|---------------------|");
+            programLogger->info("|                     |");
+            programLogger->info("|                     |");
+            programLogger->info("|         {:02d}          |", TRI2);
+            programLogger->info("|     TRI2 Data       |");
+            programLogger->info("|                     |");
+            programLogger->info("|---------------------|");
+            break;
         default:
             PrintEmptyBlock();
             break;
