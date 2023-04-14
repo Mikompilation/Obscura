@@ -300,9 +300,30 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
         int image_h = pTRI2HeadTop->gsli.trxreg.RRH;
         int image_w = pTRI2HeadTop->gsli.trxreg.RRW;
         auto data_size = image_w * image_h;
+        auto numColors = 0;
+        auto clutType = NO_CLUT;
+        auto clutColorType = RGBA16;
+        auto image_color_index_off = 0;
+
+        switch(pTRI2HeadTop->gsli.bitbltbuf.DPSM)
+        {
+            case PSMT4:
+                clutType = IDTEX4;
+                clutColorType = RGBA32;
+                numColors = 16;
+                image_color_index_off = data_size >> 1;
+                break;
+            case PSMT8H:
+            case PSMT8:
+                clutType = IDTEX8;
+                clutColorType = RGBA32;
+                numColors = 256;
+                image_color_index_off = data_size;
+                break;
+        }
 
         auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
-        auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[data_size], sizeof(sceGsLoadImage));
+        auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[image_color_index_off], sizeof(sceGsLoadImage));
         auto image_data = new std::vector<unsigned int>(data_size);
 
         for(auto x = 0; x < image_w; x++)
@@ -310,8 +331,8 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
             for(auto y = 0; y < image_h; y++)
             {
                 auto image_offset = x + y * image_w;
-                auto index = Tim2GetTexel(image_color_index, x, y, image_w, IDTEX8);
-                image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, IDTEX8, RGBA32, 256, 0, index);
+                auto index = Tim2GetTexel(image_color_index, x, y, image_w, clutType);
+                image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, clutType, clutColorType, numColors, 0, index);
             }
         }
 

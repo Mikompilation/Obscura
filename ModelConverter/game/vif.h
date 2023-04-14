@@ -4,6 +4,23 @@ typedef unsigned int u_int;
 typedef unsigned char u_char;
 typedef unsigned short u_short;
 
+enum PixelStorageFormat
+{
+    PSMCT32 = 0b000000,
+    PSMCT24 = 0b000001,
+    PSMCT16 = 0b000010,
+    PCMCT16S = 0b001010,
+    PSMT8 = 0b010011,
+    PSMT4 = 0b010100,
+    PSMT8H = 0b011011,
+    PSMT4HL = 0b100100,
+    PSMT4HH = 0b101100,
+    PSMZ32 = 0b110000,
+    PSMZ24 = 0b110001,
+    PSMZ16 = 0b110010,
+    PSMZ16S = 0b111010,
+};
+
 struct _sceDmaTag {
     /*   0 */ u_short qwc;
     /*   2 */ u_char mark;
