@@ -77,9 +77,13 @@ void ExportMesh(const std::vector<Mesh>& meshes, const std::filesystem::path& pa
 
         // Setting up the textures
         scene->mTextures[m] = new aiTexture();
-        scene->mTextures[m]->mHeight = mesh.textures[0]->GetHeight();
-        scene->mTextures[m]->mWidth = mesh.textures[0]->GetWidth();
-        scene->mTextures[m]->pcData = static_cast<aiTexel *>(mesh.textures[0]->GetRawData());
+
+        if (!mesh.textures.empty())
+        {
+            scene->mTextures[m]->mHeight = mesh.textures[0]->GetHeight();
+            scene->mTextures[m]->mWidth = mesh.textures[0]->GetWidth();
+            scene->mTextures[m]->pcData = static_cast<aiTexel *>(mesh.textures[0]->GetRawData());
+        }
 
         // Setting up the materials
         scene->mMeshes[m]->mMaterialIndex = m;

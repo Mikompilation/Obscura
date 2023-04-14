@@ -62,7 +62,7 @@ void DisplayFF2Model(const char *filename) {
 
     auto file = std::filesystem::path(filename);
 
-    ExportMesh(vectorMeshes, std::filesystem::current_path() / file.filename().replace_extension(".obj"));
+    ExportMesh(vectorMeshes, std::filesystem::current_path() / file.filename().replace_extension(".obj").filename());
 
     InitVisualizer();
     DrawTriangleMeshes(vectorMeshes);
@@ -320,6 +320,14 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
                 numColors = 256;
                 image_color_index_off = data_size;
                 break;
+            case PSMCT32:
+                clutType = NO_CLUT;
+                clutColorType = RGBA32;
+                numColors = 0;
+                image_color_index_off = 0;
+                image_h = image_w;
+                data_size = image_w * image_w;
+                break;
         }
 
         auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
@@ -330,9 +338,23 @@ void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
         {
             for(auto y = 0; y < image_h; y++)
             {
-                auto image_offset = x + y * image_w;
-                auto index = Tim2GetTexel(image_color_index, x, y, image_w, clutType);
-                image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, clutType, clutColorType, numColors, 0, index);
+                if (pTRI2HeadTop->gsli.bitbltbuf.DPSM == PSMCT32)
+                {
+                    auto image_offset = x + y * image_w;
+                    unsigned char r, g, b, a;
+                    r = image_color_index[image_offset * 4 + 0];
+                    g = image_color_index[image_offset * 4 + 1];
+                    b = image_color_index[image_offset * 4 + 2];
+                    a = image_color_index[image_offset * 4 + 3];
+
+                    image_data->data()[image_offset] = (unsigned int)((a << 24) | (b << 16) | (g << 8) | r);
+                }
+                else
+                {
+                    auto image_offset = x + y * image_w;
+                    auto index = Tim2GetTexel(image_color_index, x, y, image_w, clutType);
+                    image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, clutType, clutColorType, numColors, 0, index);
+                }
             }
         }
 
