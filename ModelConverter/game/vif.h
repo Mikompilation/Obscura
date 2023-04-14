@@ -4,6 +4,23 @@ typedef unsigned int u_int;
 typedef unsigned char u_char;
 typedef unsigned short u_short;
 
+enum PixelStorageFormat
+{
+    PSMCT32 = 0b000000,
+    PSMCT24 = 0b000001,
+    PSMCT16 = 0b000010,
+    PCMCT16S = 0b001010,
+    PSMT8 = 0b010011,
+    PSMT4 = 0b010100,
+    PSMT8H = 0b011011,
+    PSMT4HL = 0b100100,
+    PSMT4HH = 0b101100,
+    PSMZ32 = 0b110000,
+    PSMZ24 = 0b110001,
+    PSMZ16 = 0b110010,
+    PSMZ16S = 0b111010,
+};
+
 struct _sceDmaTag {
     /*   0 */ u_short qwc;
     /*   2 */ u_char mark;
@@ -35,86 +52,177 @@ struct qword
     u_char a15;
 };
 
-typedef struct { // 0x10
+typedef struct {
+    unsigned long long ZBP : 9;
+    unsigned long long pad09 : 15;
+    unsigned long long PSM : 4;
+    unsigned long long pad28 : 4;
+    unsigned long long ZMSK : 1;
+    unsigned long long pad33 : 31;
+} sceGsZbuf;
+
+typedef struct {
+    unsigned long long SBP : 14;
+    unsigned long long pad14 : 2;
+    unsigned long long SBW : 6;
+    unsigned long long pad22 : 2;
+    unsigned long long SPSM : 6;
+    unsigned long long pad30 : 2;
+    unsigned long long DBP : 14;
+    unsigned long long pad46 : 2;
+    unsigned long long DBW : 6;
+    unsigned long long pad54 : 2;
+    unsigned long long DPSM : 6;
+    unsigned long long pad62 : 2;
+} sceGsBitbltbuf;
+
+typedef struct {
+    unsigned long long SSAX : 11;
+    unsigned long long pad11 : 5;
+    unsigned long long SSAY : 11;
+    unsigned long long pad27 : 5;
+    unsigned long long DSAX : 11;
+    unsigned long long pad43 : 5;
+    unsigned long long DSAY : 11;
+    unsigned long long DIR : 2;
+    unsigned long long pad61 : 3;
+} sceGsTrxpos;
+
+typedef struct {
+    unsigned long long RRW : 12;
+    unsigned long long pad12 : 20;
+    unsigned long long RRH : 12;
+    unsigned long long pad44 : 20;
+} sceGsTrxreg;
+
+typedef struct {
+    unsigned long long XDR : 2;
+    unsigned long long pad01 : 30;
+    unsigned long long pad02 : 32;
+} sceGsTrxdir;
+
+typedef struct {
     /// Repeat count (GS primitive data size)
     ///     PACKED mode NREG x NLOOP(qword)
     ///         REGLIST mode NREG x NLOOP(dword)
     ///             IMAGE mode NLOOP(qword)
-    long unsigned int NLOOP : 15;
+    unsigned long long NLOOP : 15;
 
     /// Termination information (End Of Packet)
     ///     0 With following primitive
     ///     1 Without following primitive (End of GS packet)
-    long unsigned int EOP : 1;
-    long unsigned int pad16 : 16;
-    long unsigned int id : 14;
+    unsigned long long EOP : 1;
+    unsigned long long pad16 : 16;
+    unsigned long long id : 14;
 
     /// PRIM field enable
     ///     0 Ignores PRIM field
     ///     1 Outputs PRIM field value to PRIM register
-    long unsigned int PRE : 1;
+    unsigned long long PRE : 1;
 
     /// Data to be set to the PRIM register of GS
-    long unsigned int PRIM : 11;
+    unsigned long long PRIM : 11;
 
     /// Data format
     ///     00  PACKED mode
     ///     01  REGLIST mode
     ///     10  IMAGE mode
     ///     11  Disable (Same operation with the IMAGE mode)
-    long unsigned int FLG : 2;
+    unsigned long long FLG : 2;
 
     /// Register descriptor
     ///     Number of register descriptors in REGS field
     ///         When the value is 0, the number of descriptors is 16.
-    long unsigned int NREG : 4;
+    unsigned long long NREG : 4;
 
     /// PRIM
-    long unsigned int REGS0 : 4;
+    unsigned long long REGS0 : 4;
 
     /// RGBAQ
-    long unsigned int REGS1 : 4;
+    unsigned long long REGS1 : 4;
 
     /// ST
-    long unsigned int REGS2 : 4;
+    unsigned long long REGS2 : 4;
 
     /// UV
-    long unsigned int REGS3 : 4;
+    unsigned long long REGS3 : 4;
 
     /// XYZF2
-    long unsigned int REGS4 : 4;
+    unsigned long long REGS4 : 4;
 
     /// XYZ2
-    long unsigned int REGS5 : 4;
+    unsigned long long REGS5 : 4;
 
     /// TEX0_1
-    long unsigned int REGS6 : 4;
+    unsigned long long REGS6 : 4;
 
     /// TEX0_2
-    long unsigned int REGS7 : 4;
+    unsigned long long REGS7 : 4;
 
     /// CLAMP_1
-    long unsigned int REGS8 : 4;
+    unsigned long long REGS8 : 4;
 
     /// CLAMP_2
-    long unsigned int REGS9 : 4;
+    unsigned long long REGS9 : 4;
 
     /// FOG
-    long unsigned int REGS10 : 4;
-    long unsigned int REGS11 : 4;
+    unsigned long long REGS10 : 4;
+    unsigned long long REGS11 : 4;
 
     /// XYZF3
-    long unsigned int REGS12 : 4;
+    unsigned long long REGS12 : 4;
 
     /// XYZ3
-    long unsigned int REGS13 : 4;
+    unsigned long long REGS13 : 4;
 
     /// A+D
-    long unsigned int REGS14 : 4;
+    unsigned long long REGS14 : 4;
 
     /// NOP
-    long unsigned int REGS15 : 4;
+    unsigned long long REGS15 : 4;
 } sceGifTag;
+
+typedef struct {
+    unsigned long long TBP0 : 14;
+    unsigned long long TBW : 6;
+    unsigned long long PSM : 6;
+    unsigned long long TW : 4;
+    unsigned long long TH : 4;
+    unsigned long long TCC : 1;
+    unsigned long long TFX : 2;
+    unsigned long long CBP : 14;
+    unsigned long long CPSM : 4;
+    unsigned long long CSM : 1;
+    unsigned long long CSA : 5;
+    unsigned long long CLD : 3;
+} sceGsTex0;
+
+typedef struct {
+    unsigned long long LCM : 1;
+    unsigned long long pad01 : 1;
+    unsigned long long MXL : 3;
+    unsigned long long MMAG : 1;
+    unsigned long long MMIN : 3;
+    unsigned long long MTBA : 1;
+    unsigned long long pad10 : 9;
+    unsigned long long L : 2;
+    unsigned long long pad21 : 11;
+    unsigned long long K : 12;
+    unsigned long long pad44 : 20;
+} sceGsTex1;
+
+typedef struct {
+    sceGifTag giftag0;
+    sceGsBitbltbuf bitbltbuf;
+    unsigned long long bitbltbufaddr;
+    sceGsTrxpos trxpos;
+    unsigned long long trxposaddr;
+    sceGsTrxreg trxreg;
+    unsigned long long trxregaddr;
+    sceGsTrxdir trxdir;
+    unsigned long long trxdiraddr;
+    sceGifTag giftag1;
+} sceGsLoadImage;
 
 enum VIFCodeType : unsigned int
 {
@@ -140,67 +248,68 @@ enum VIFCodeType : unsigned int
     DIRECThl = 0b1010001,
 };
 
-struct G3DVIF1CODE_UNPACK {
-    /*   0 */ unsigned int ADDR : 10;
-    /*   1 */ unsigned int pad : 4;
-    /*   1 */ unsigned int USN : 1;
-    /*   1 */ unsigned int FLG : 1;
-    /*   2 */ unsigned int NUM : 7;
-    /*   3 */ unsigned int CMD : 7;
-};
-
-struct G3DVIF1CODE_DIRECT {
-    /*   0 */ unsigned int size : 16;
-    /*   2 */ unsigned int num : 8;
-    /*   3 */ VIFCodeType  cmd : 7;
-    /*   3 */ unsigned int irq : 1;
-};
-
-struct G3DVIF1CODE_MARK {
-    /*   0 */ unsigned int MARK;
-    /*   2 */ unsigned int NUM;
-    /*   3 */ VIFCodeType CMD;
-    /*   3 */ unsigned int irq;
-};
-
 struct G3DVIF1CODE_STCYCLE {
-    /*   0 */ unsigned int CL : 7;
-    /*   1 */ unsigned int WL : 5;
-    /*   2 */ unsigned int NUM : 3;
-    /*   3 */ VIFCodeType  CMD : 4;
-    /*   3 */ unsigned int irq : 1;
+    unsigned int CL : 8;
+    unsigned int WL : 8;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
 };
 
 struct G3DVIF1CODE_OFFSET {
-    /*   0 */ unsigned int OFFSET;
-    /*   1 */ unsigned int __;
-    /*   2 */ unsigned int NUM;
-    /*   3 */ VIFCodeType CMD;
-    /*   3 */ unsigned int irq;
+    unsigned int OFFSET : 10;
+    unsigned int __ : 6;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
 };
 
 struct G3DVIF1CODE_BASE {
-    /*   0 */ unsigned int BASE :   9;
-    /*   1 */ unsigned int __   :   5;
-    /*   2 */ unsigned int NUM  :   11;
-    /*   3 */ VIFCodeType  CMD  :   6;
-    /*   3 */ unsigned int irq  :   1;
+    unsigned int BASE : 8;
+    unsigned int __ : 8;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
 };
 
 struct G3DVIF1CODE_ITOP {
-    /*   0 */ unsigned int ADDR :   9;
-    /*   1 */ unsigned int __   :   5;
-    /*   2 */ unsigned int NUM  :   8;
-    /*   3 */ VIFCodeType  CMD  :   6;
-    /*   3 */ unsigned int irq  :   1;
+    unsigned int ADDR : 8;
+    unsigned int __ : 8;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
 };
 
 struct G3DVIF1CODE_STMOD {
-    /*   0 */ unsigned int MODE;
-    /*   0 */ unsigned int __;
-    /*   2 */ unsigned int NUM;
-    /*   3 */ VIFCodeType CMD;
-    /*   3 */ unsigned int irq;
+    unsigned int MODE : 2;
+    unsigned int __ : 14;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
+};
+
+struct G3DVIF1CODE_MARK {
+    unsigned int MARK : 16;
+    unsigned int NUM : 8;
+    unsigned int CMD : 7;
+    unsigned int irq : 1;
+};
+
+struct G3DVIF1CODE_DIRECT {
+    unsigned int size : 16;
+    unsigned int num : 8;
+    unsigned int cmd : 7;
+    unsigned int irq : 1;
+};
+
+
+struct G3DVIF1CODE_UNPACK {
+    unsigned int ADDR : 10;
+    unsigned int pad : 4;
+    unsigned int USN : 1;
+    unsigned int FLG : 1;
+    unsigned int NUM : 8;
+    unsigned int CMD : 8;
 };
 
 union G3DVIF1CODE {

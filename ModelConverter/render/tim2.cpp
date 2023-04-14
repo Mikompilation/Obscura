@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <cstdio>
 #include "tim2.h"
 
 /// Checks if the header ID is valid
@@ -337,6 +337,98 @@ unsigned int Tim2GetClutColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int clut, 
     return (unsigned int)((a << 24) | (b << 16) | (g << 8) | r);
 }
 
+/// Get CLUT color
+/// Arguments
+///         pTim2PictureHeader:		TIM2 picture header
+///         clut:	                CLUT set specification
+///         index:		            Index of CLUT to obtain
+/// Returns
+///			RGBA32 color, when valid
+///         Black when invalid
+unsigned int Tim2GetClutColor(unsigned char* pClutData, TIM2_gattr_type colorType, TIM2_gattr_type clutColorType, int clutColorsCount, int clut, unsigned int index)
+{
+    int numColorData;
+    unsigned char r, g, b, a;
+
+    if (pClutData == nullptr)
+    {
+        return 0;
+    }
+
+    switch (colorType)
+    {
+        case IDTEX4:
+            numColorData = clut * 16 + index;
+            break;
+        case IDTEX8:
+            numColorData = clut * 256 + index;
+            break;
+        default:
+            return 0;
+    }
+
+    if (numColorData > clutColorsCount)
+    {
+        return 0;
+    }
+
+    switch ((clutColorType << 8) | colorType)
+    {
+        case (((RGBA16 | 0x40) << 8) | IDTEX4):
+        case (((RGB32 | 0x40) << 8) | IDTEX4):
+        case (((RGBA32 | 0x40) << 8) | IDTEX4):
+        case ((RGBA16 << 8) | IDTEX8):
+        case ((RGB32 << 8) | IDTEX8):
+        case ((RGBA32 << 8) | IDTEX8):
+
+            if ((numColorData & 31) >= 8)
+            {
+                if ((numColorData & 31) < 16)
+                {
+                    numColorData += 8;
+                }
+                else if ((numColorData & 31) < 24)
+                {
+                    numColorData -= 8;
+                }
+            }
+
+            break;
+    }
+
+    switch (clutColorType & 0x3F) {
+        case RGBA16:
+            r = (unsigned char)((((pClutData[numColorData * 2 + 1] << 8) | pClutData[numColorData * 2]) << 3) & 0xF8);
+            g = (unsigned char)((((pClutData[numColorData * 2 + 1] << 8) | pClutData[numColorData * 2]) >> 2) & 0xF8);
+            b = (unsigned char)((((pClutData[numColorData * 2 + 1] << 8) | pClutData[numColorData * 2]) >> 7) & 0xF8);
+            a = (unsigned char)((((pClutData[numColorData * 2 + 1] << 8) | pClutData[numColorData * 2]) >> 8) & 0x80);
+            break;
+
+        case RGB32:
+            r = pClutData[numColorData * 3];
+            g = pClutData[numColorData * 3 + 1];
+            b = pClutData[numColorData * 3 + 2];
+            a = 0x80;
+            break;
+
+        case RGBA32:
+            r = pClutData[numColorData * 4];
+            g = pClutData[numColorData * 4 + 1];
+            b = pClutData[numColorData * 4 + 2];
+            a = pClutData[numColorData * 4 + 3];
+            break;
+
+        default:
+            r = 0;
+            g = 0;
+            b = 0;
+            a = 0;
+            break;
+    }
+
+    return (unsigned int)((a << 24) | (b << 16) | (g << 8) | r);
+}
+
 /// Get texel data
 /// Arguments
 ///         pTim2PictureHeader:		TIM2 picture header
@@ -347,7 +439,7 @@ unsigned int Tim2GetClutColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int clut, 
 ///			Information about the color
 unsigned int Tim2GetTexel(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLevel, int x, int y)
 {
-    unsigned char* pImage = static_cast<unsigned char*>(Tim2GetImage(pTim2PictureHeader, mipMapLevel));
+    auto* pImage = static_cast<unsigned char*>(Tim2GetImage(pTim2PictureHeader, mipMapLevel));
 
     if (pImage == nullptr)
     {
@@ -388,6 +480,54 @@ unsigned int Tim2GetTexel(TIM2_PICTUREHEADER* pTim2PictureHeader, int mipMapLeve
 
     case IDTEX8:
         return ((u_int)pImage[t]);
+    }
+
+    return 0;
+}
+
+/// Get texel data
+/// Arguments
+///         pTim2PictureHeader:		TIM2 picture header
+///         x:	                    Texel X coord
+///         y:	                    Texel Y coord
+///         width:		            Width of image
+///         imageColorType:	        Image color type
+/// Returns
+///			Information about the color
+unsigned int Tim2GetTexel(unsigned char* pImage, int x, int y, int width, TIM2_gattr_type imageColorType)
+{
+    if (pImage == nullptr)
+    {
+        return 0;
+    }
+
+    auto t = x + y * width;
+
+    switch (imageColorType)
+    {
+        case RGBA16:
+            return (u_int)((pImage[t * 2 + 1] << 8) | pImage[t * 2]);
+
+        case RGB32:
+            return (u_int)((pImage[t * 3 + 2] << 16) | (pImage[t * 3 + 1] << 8) | pImage[t * 3]);
+
+        case RGBA32:
+            return (u_int)((pImage[t * 4 + 3] << 24) | (pImage[t * 4 + 2] << 16) | (pImage[t * 4 + 1] << 8) | pImage[t * 4]);
+
+        case IDTEX4:
+            if (x & 1)
+            {
+                return (u_int)(pImage[t / 2] >> 4);
+            }
+            else
+            {
+                return (u_int)(pImage[t / 2] & 0x0F);
+            }
+
+        case IDTEX8:
+            return ((u_int)pImage[t]);
+        case NO_CLUT:
+            break;
     }
 
     return 0;
@@ -436,11 +576,11 @@ unsigned int Tim2GetTextureColor(TIM2_PICTUREHEADER* pTim2PictureHeader, int mip
     return 0;
 }
 
-Tim2Converted *LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
+Tim2Converted * LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
 {
   auto ph = (TIM2_PICTUREHEADER *) Tim2GetPictureHeader(pTim2FileHeader, 0);
 
-  unsigned int *texture =
+  auto *texture =
       new unsigned int[static_cast<int>(ph->ImageWidth)
                        * static_cast<int>(ph->ImageHeight)];
 
@@ -455,7 +595,7 @@ Tim2Converted *LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
     }
   }
 
-  Tim2Converted *convertedTexture = new Tim2Converted {
+  auto *convertedTexture = new Tim2Converted {
       (int) ph->ImageHeight, (int) ph->ImageWidth, texture};
 
   return convertedTexture;

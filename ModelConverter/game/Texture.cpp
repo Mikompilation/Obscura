@@ -1,6 +1,6 @@
 #include "Texture.h"
 
-Texture *CreateTextureFromRawData(int width, int height, void *data)
+Texture *CreateTextureFromRawData(int width, int height, void *data, int address)
 {
   if (width <= 0 || height <= 0 || data == nullptr)
   {
@@ -8,6 +8,8 @@ Texture *CreateTextureFromRawData(int width, int height, void *data)
   }
 
   auto texture = new Texture(width, height, data);
+  texture->SetAddress(address);
+
   auto rawPixel = (unsigned int*) data;
 
   struct RGBA
@@ -23,6 +25,7 @@ Texture *CreateTextureFromRawData(int width, int height, void *data)
     for (auto k = 0; k < width; k++)
     {
       auto pixel = (RGBA*) &rawPixel[(i * width + k)];
+      pixel->a = (char) (255.0f * (pixel->a / 128.0f));
       texture->AddPixel(k, height - 1 - i, pixel->r, pixel->g, pixel->b, pixel->a);
     }
   }
@@ -87,4 +90,17 @@ Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> Texture::GetAlpha()
 void *Texture::GetRawData()
 {
   return this->RawData;
+}
+
+int Texture::GetAddress() {
+    return this->Address;
+}
+
+int Texture::SetAddress(int address) {
+    return this->Address = address;
+}
+
+unsigned int Texture::GetPixel(int i, int j) {
+    auto rawPixel = (unsigned int*) this->RawData;
+    return (unsigned int) rawPixel[(i) + (j * this->Width)];
 }

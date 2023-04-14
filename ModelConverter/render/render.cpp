@@ -54,8 +54,9 @@ void ConvertSgdMeshToIglMesh(Mesh mesh, igl::opengl::ViewerData *viewerData) {
     if (!mesh.textures.empty() && mesh.textures[0] != nullptr) {
         auto texture = mesh.textures[0];
         viewerData->set_texture(texture->GetRed(), texture->GetGreen(),
-                                texture->GetBlue());
+                                texture->GetBlue(), texture->GetAlpha());
         viewerData->show_texture = true;
+        viewerData->show_lines = false;
     }
 
     viewerData->set_colors(Eigen::RowVector3d(1, 1, 1));
@@ -108,9 +109,5 @@ void InitVisualizer() {
 }
 
 void RunVisualizer() {
-    viewer.launch(true, false, "FatalStack");
-}
-
-void ExportMdl(std::vector<Mesh> meshes, std::string filename) {
-    viewer.save_mesh_to_file(filename + ".obj");
+    viewer.launch(true, false, "Model Extractor");
 }

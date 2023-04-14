@@ -1,11 +1,8 @@
 #include "sgdMdl.h"
 #include "game/packfile.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include "stb_write_image.h"
 #include "tim2.h"
-#include <filesystem>
+#include "utils/utility.h"
+#include "game/Exporter.h"
 #include <fstream>
 #include <vector>
 
@@ -17,7 +14,6 @@ SGDFILEHEADER *sgdCurr;
 SGDPROCUNITHEADER *s_ppuhVUVN;
 SGDCOORDINATEDESC *sgdCoordintate;
 SGDVUMATERIALDESC *sgdMaterial;
-int image_id = 0;
 
 void DisplayFF2Model(const char *filename) {
     auto pakFile = (PK2_HEAD *) ReadFullFile(filename);
@@ -33,13 +29,15 @@ void DisplayFF2Model(const char *filename) {
         for (auto i = 0; i < texturePak->pack_num; i++) {
             auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
 
-            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0) {
-                printf("Found broken model with badly alligned textures");
-                break;
+            if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || !Tim2CheckFileHeader(tim2)) {
+                programLogger->critical("Found broken model with invalid textures");
+                continue;
             }
 
+            auto ph = Tim2GetPictureHeader(tim2, 0);
+
             auto convertedTim2 = LoadTim2Texture(tim2);
-            auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image);
+            auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image, ph->GsTex0.TBP0);
             textures.emplace_back(img);
         }
     }
@@ -49,7 +47,8 @@ void DisplayFF2Model(const char *filename) {
         sgdCurr = (SGDFILEHEADER *) mdlPak;
         sgdRemap(sgdCurr);
         HandleProcUnit(sgdCurr);
-    } else {
+    }
+    else {
         for (auto i = 0; i < mdlPak->pack_num; i++) {
             sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
             sgdRemap(sgdCurr);
@@ -57,17 +56,13 @@ void DisplayFF2Model(const char *filename) {
         }
     }
 
-    auto index = 0;
     for (auto m: meshes) {
-        if (index < textures.size()) {
-            m.second.textures.emplace_back(textures[index]);
-            vectorMeshes.emplace_back(m.second);
-        } else {
-            vectorMeshes.emplace_back(m.second);
-        }
-
-        index += 1;
+        vectorMeshes.emplace_back(m.second);
     }
+
+    auto file = std::filesystem::path(filename);
+
+    ExportMesh(vectorMeshes, std::filesystem::current_path() / file.filename().replace_extension(".obj").filename());
 
     InitVisualizer();
     DrawTriangleMeshes(vectorMeshes);
@@ -147,9 +142,10 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
     SGDVUMESHSTDATA *sgdMeshData;
 
-    if (pHead->VUMeshDesc.MeshType.FLAT == true && pHead->VUMeshDesc.MeshType.PRE == true) {
+    if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
         sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
-    } else {
+    }
+    else {
         /// For a mesh order is SGDVUMESHPOINTNUM -> SGDVUMESHSTREGSET -> SGDVUMESHSTDATA
         auto sgdVuMeshStRegSet = (SGDVUMESHSTREGSET *) &pMeshInfo[pHead->VUMeshDesc.ucNumMesh];
         sgdMeshData = (SGDVUMESHSTDATA *) &sgdVuMeshStRegSet->auiVifCode[3];
@@ -159,6 +155,9 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
     Mesh *mesh;
 
+
+    auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
+
     if (meshes.find(materialName) == meshes.end()) {
         meshes[materialName] = Mesh();
         mesh = &meshes[materialName];
@@ -167,6 +166,21 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
         mesh->ambient.push_back(pMaterial->vAmbient);
         mesh->specular.push_back(pMaterial->vSpecular);
         mesh->mesh_name.push_back(materialName);
+
+        for (auto v : textures)
+        {
+            if (v->GetAddress() == mesh_tex_reg->TBP0)
+            {
+                mesh->textures.push_back(v);
+                break;
+            }
+        }
+
+        if (mesh->textures.empty() && sgdMaterial->iMaterialIndex < textures.size())
+        {
+            mesh->textures.push_back(textures[sgdMaterial->iMaterialIndex]);
+        }
+
     } else {
         mesh = &meshes[materialName];
     }
@@ -182,7 +196,8 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
         if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
             numPoint = pVMCD->VifUnpack.NUM;
-        } else {
+        }
+        else {
             numPoint = pMeshInfo[i].uiPointNum;
         }
 
@@ -191,16 +206,19 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             Vector3 n{};
 
             /// VectorType == 0x5
+            /// MeshType == IMT_2
             if (pHead->VUMeshDesc.MeshType.NVL == true || pHead->VUMeshDesc.ucMeshType == iMT_2) {
                 HandleNVLMesh(offsetVertex + currPointIndex, v, n);
             }
-                /// VectorType == 0x6
+            /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED) {
                 HandleWeightedMesh(offsetVertex + currPointIndex, v, n);
-            } else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
+            }
+            /// MeshType == IMT_2F
+            else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
                 HandleFlatMesh(offsetVertex + currPointIndex, v, n);
             }
-                /// VectorType == 0x6
+            /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_UNIQUE) {
                 HandleUniqueMesh(offsetVertex + currPointIndex, v, n);
             }
@@ -229,13 +247,14 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             if (currPointIndex % 2 == 0) {
                 mesh->triangles.push_back(
                         {triangleOffset, triangleOffset + 1, triangleOffset + 2});
-            } else {
+            }
+            else {
                 mesh->triangles.push_back(
                         {triangleOffset + 1, triangleOffset, triangleOffset + 2});
             }
         }
 
-        sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(sgdMeshData, sizeof(SGDVUMESHST) * numPoint + 4);
+        sgdMeshData = (SGDVUMESHSTDATA*) &sgdMeshData->astData[numPoint];
 
         if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
             pVMCD = (_SGDVUMESHCOLORDATA *) &pVMCD->avColor[pVMCD->VifUnpack.NUM];
@@ -270,17 +289,81 @@ void HandleBoundingBoxDataBlock(SGDPROCUNITHEADER *pHead) {
 }
 
 void HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead) {
+    auto sgdGsImage = RelOffsetToPtr<SGDGSIMAGEDESC>(&pHead[1], pHead->TexDesc.iPaddingSize);
 }
 
 void HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
-    return;
-    auto sgdTri2 = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
-    auto a = RelOffsetToPtr<Vector3i>(sgdTri2, 0x40);
-    const void *data = RelOffsetToPtr<void>(sgdTri2, 0x70);
-    auto filename = ((std::filesystem::current_path() / (std::to_string(image_id) + ".bmp")));
-    image_id++;
+    auto pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
+    auto rTexDesc = &pHead->TexDesc;
 
-    stbi_write_bmp(filename.string().c_str(), a->x, a->y, 1, data);
+    for (auto i = 0; i < rTexDesc->iNumTexture; i++) {
+        int image_h = pTRI2HeadTop->gsli.trxreg.RRH;
+        int image_w = pTRI2HeadTop->gsli.trxreg.RRW;
+        auto data_size = image_w * image_h;
+        auto numColors = 0;
+        auto clutType = NO_CLUT;
+        auto clutColorType = RGBA16;
+        auto image_color_index_off = 0;
+
+        switch(pTRI2HeadTop->gsli.bitbltbuf.DPSM)
+        {
+            case PSMT4:
+                clutType = IDTEX4;
+                clutColorType = RGBA32;
+                numColors = 16;
+                image_color_index_off = data_size >> 1;
+                break;
+            case PSMT8H:
+            case PSMT8:
+                clutType = IDTEX8;
+                clutColorType = RGBA32;
+                numColors = 256;
+                image_color_index_off = data_size;
+                break;
+            case PSMCT32:
+                clutType = NO_CLUT;
+                clutColorType = RGBA32;
+                numColors = 0;
+                image_color_index_off = 0;
+                image_h = image_w;
+                data_size = image_w * image_w;
+                break;
+        }
+
+        auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
+        auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[image_color_index_off], sizeof(sceGsLoadImage));
+        auto image_data = new std::vector<unsigned int>(data_size);
+
+        for(auto x = 0; x < image_w; x++)
+        {
+            for(auto y = 0; y < image_h; y++)
+            {
+                if (pTRI2HeadTop->gsli.bitbltbuf.DPSM == PSMCT32)
+                {
+                    auto image_offset = x + y * image_w;
+                    unsigned char r, g, b, a;
+                    r = image_color_index[image_offset * 4 + 0];
+                    g = image_color_index[image_offset * 4 + 1];
+                    b = image_color_index[image_offset * 4 + 2];
+                    a = image_color_index[image_offset * 4 + 3];
+
+                    image_data->data()[image_offset] = (unsigned int)((a << 24) | (b << 16) | (g << 8) | r);
+                }
+                else
+                {
+                    auto image_offset = x + y * image_w;
+                    auto index = Tim2GetTexel(image_color_index, x, y, image_w, clutType);
+                    image_data->data()[image_offset] = Tim2GetClutColor(image_color_data, clutType, clutColorType, numColors, 0, index);
+                }
+            }
+        }
+
+        SaveImage(image_w, image_h, 4, image_data->data());
+        textures.emplace_back(CreateTextureFromRawData(image_w, image_h, image_data->data(), pTRI2HeadTop->gsli.bitbltbuf.DBP));
+
+        pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
+                                                         pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+    }
 }
 
 void HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
@@ -357,131 +440,4 @@ void HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
 SGDCOORDINATE *GetCurrentCoordinate() {
     return GetCoordinatePtr(sgdCurr) == nullptr ? GetCoordinatePtr(sgdTop)
                                                 : GetCoordinatePtr(sgdCurr);
-}
-
-uint *GetNextUnpackAddr(uint *prim) {
-    uint *puVar1;
-
-    do {
-        puVar1 = prim;
-        prim = puVar1 + 1;
-    } while ((*puVar1 & 0x60000000) != 0x60000000);
-    return puVar1;
-}
-
-void Vector2Clamp(Vector2 &v) {
-    if (v.x < 0.0f) {
-        v.x = 0.0f;
-    }
-
-    if (v.x > 1.0f) {
-        v.x = 1.0f;
-    }
-
-    if (v.y < 0.0f) {
-        v.y = 0.0f;
-    }
-
-    if (v.y > 1.0f) {
-        v.y = 1.0f;
-    }
-}
-
-void operator/=(Vector2 &v, float factor) {
-    v.x = v.x / factor;
-    v.y = v.y / factor;
-}
-
-void operator*=(Vector2 &v, float factor) {
-    v.x = v.x * factor;
-    v.y = v.y * factor;
-}
-
-Vector3 &operator+=(Vector3 &source, const Vector3 &target) {
-    source.x = source.x + target.x;
-    source.y = source.y + target.y;
-    source.z = source.z + target.z;
-
-    return source;
-}
-
-Vector3 &operator+(Vector3 &source, const Vector3 &target) {
-    source.x = source.x + target.x;
-    source.y = source.y + target.y;
-    source.z = source.z + target.z;
-
-    return source;
-}
-
-Vector3 &operator+=(Vector3 &source, const Vector4 *target) {
-    source.x = source.x + target->x;
-    source.y = source.y + target->y;
-    source.z = source.z + target->z;
-
-    return source;
-}
-
-Vector3 &operator*(Vector3 &source, const float factor) {
-    source.x *= factor;
-    source.y *= factor;
-    source.z *= factor;
-
-    return source;
-}
-
-Matrix4x4 MatrixTranspose(const Matrix4x4 m) {
-    Matrix4x4 outM;
-
-    outM.row1.x = m.row1.x;
-    outM.row1.y = m.row2.x;
-    outM.row1.z = m.row3.x;
-    outM.row1.w = m.row4.x;
-
-    outM.row2.x = m.row1.y;
-    outM.row2.y = m.row2.y;
-    outM.row2.z = m.row3.y;
-    outM.row2.w = m.row4.y;
-
-    outM.row3.x = m.row1.z;
-    outM.row3.y = m.row2.z;
-    outM.row3.z = m.row3.z;
-    outM.row3.w = m.row4.z;
-
-    outM.row4.x = m.row1.w;
-    outM.row4.y = m.row2.w;
-    outM.row4.z = m.row3.w;
-    outM.row4.w = m.row4.w;
-
-    return outM;
-}
-
-Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat) {
-    Vector3 result = {0};
-
-    float x = v.x;
-    float y = v.y;
-    float z = v.z;
-
-    result.x = mat.row1.x * x + mat.row1.y * y + mat.row1.z * z + mat.row1.w;
-    result.y = mat.row2.x * x + mat.row2.y * y + mat.row2.z * z + mat.row2.w;
-    result.z = mat.row3.x * x + mat.row3.y * y + mat.row3.z * z + mat.row3.w;
-
-    return result;
-}
-
-char *ReadFullFile(const char *filename) {
-    char *buffer;
-    std::ifstream infile(filename, std::ios::binary);
-
-    infile.seekg(0, std::ios::end);
-    size_t length = infile.tellg();
-    infile.seekg(0, std::ios::beg);
-
-    buffer = new char[length];
-
-    infile.read(buffer, length);
-
-    infile.close();
-
-    return buffer;
 }
