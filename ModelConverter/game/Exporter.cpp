@@ -82,7 +82,18 @@ void ExportMesh(const std::vector<Mesh>& meshes, const std::filesystem::path& pa
         {
             scene->mTextures[m]->mHeight = mesh.textures[0]->GetHeight();
             scene->mTextures[m]->mWidth = mesh.textures[0]->GetWidth();
-            scene->mTextures[m]->pcData = static_cast<aiTexel *>(mesh.textures[0]->GetRawData());
+
+            scene->mTextures[m]->pcData = new aiTexel[mesh.textures[0]->GetHeight() * mesh.textures[0]->GetWidth()];
+
+            for (auto i = 0; i < mesh.textures[0]->GetHeight(); i++)
+            {
+                for (auto j = 0; j < mesh.textures[0]->GetWidth(); j++)
+                {
+                    unsigned int pixel = mesh.textures[0]->GetPixel(i, j);
+                    auto p = (aiTexel*) &pixel;
+                    scene->mTextures[m]->pcData[i * mesh.textures[0]->GetWidth() + j] = {p->b, p->g, p->r, p->a};
+                }
+            }
         }
 
         // Setting up the materials

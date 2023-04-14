@@ -99,3 +99,8 @@ int Texture::GetAddress() {
 int Texture::SetAddress(int address) {
     return this->Address = address;
 }
+
+unsigned int Texture::GetPixel(int i, int j) {
+    auto rawPixel = (unsigned int*) this->RawData;
+    return (unsigned int) rawPixel[(i) + (j * this->Width)];
+}

@@ -16,7 +16,9 @@ class Texture{
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> GetGreen();
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> GetBlue();
   Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> GetAlpha();
- private:
+  unsigned int GetPixel(int i, int j);
+
+private:
   int Width;
   int Height;
   int Address = 0;
