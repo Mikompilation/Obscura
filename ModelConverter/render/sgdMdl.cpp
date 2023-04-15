@@ -46,8 +46,6 @@ void DisplayFF2Model(const char *filename) {
             auto convertedTim2 = LoadTim2Texture(tim2);
             auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image, ph->GsTex0.TBP0);
             textures.emplace_back(img);
-
-            //SaveImage(convertedTim2->Width, convertedTim2->Height, 4, convertedTim2->image);
         }
     }
 
