@@ -37,8 +37,20 @@ char *ReadFullFile(const char *filename) {
 }
 
 void SaveImage(int width, int height, int numChannels, void *data) {
-    auto filename = ((std::filesystem::current_path() / ".." / "picture" / (std::to_string(image_id) + ".png")));
+    auto filename = ((std::filesystem::current_path() / (std::to_string(image_id) + ".png")));
 
     stbi_write_png(filename.string().c_str(), width, height, numChannels, data, 0);
     image_id++;
+}
+
+void SaveImage(int imageId, int width, int height, int numChannels, void *data) {
+    auto filename = ((std::filesystem::current_path() / (std::to_string(imageId) + ".png")));
+
+    stbi_write_png(filename.string().c_str(), width, height, numChannels, data, 0);
+}
+
+void SaveImage(std::string name, int width, int height, int numChannels, void *data) {
+    auto filename = ((std::filesystem::current_path() / name));
+
+    stbi_write_png(filename.string().c_str(), width, height, numChannels, data, 0);
 }

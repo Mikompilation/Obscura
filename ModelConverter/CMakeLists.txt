@@ -1,12 +1,6 @@
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include(libigl)
 include(assimp)
-
-# Enables plugins of igl
-igl_include(glfw)
-igl_include(imgui)
-igl_include(opengl)
 
 add_subdirectory(third-party)
 
@@ -19,8 +13,6 @@ add_executable(ModelConverter
         game/sgd_types.h
         render/tim2.cpp
         render/tim2.h
-        render/render.h
-        render/render.cpp
         utils/logging.cpp
         utils/logging.h
         render/sgdMdl.cpp
@@ -44,8 +36,10 @@ add_executable(ModelConverter
         utils/utility.h
         game/Exporter.cpp
         game/Exporter.h
+        utils/assimp_utils.cpp
+        utils/assimp_utils.h
         )
 
-target_link_libraries(ModelConverter PRIVATE spdlog igl::glfw igl::imgui igl::opengl assimp)
+target_link_libraries(ModelConverter PRIVATE spdlog assimp)
 
 
