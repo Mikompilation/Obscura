@@ -1,6 +1,5 @@
 #pragma once
 
-#include "render.h"
 #include "game/sgd.h"
 #include "utils/logging.h"
 #include "math/linalg.h"

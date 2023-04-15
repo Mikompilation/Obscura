@@ -96,8 +96,11 @@ void InitLogging() {
 
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
-    sinks.push_back(
-            std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt"));
+
+#ifndef _DEBUG
+    // No need of backing up logs in dev mode since IDE will show them
+    sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", true));
+#endif
 
     programLogger = std::make_shared<spdlog::logger>(
             PROGRAM_LOGGER, begin(sinks), end(sinks));

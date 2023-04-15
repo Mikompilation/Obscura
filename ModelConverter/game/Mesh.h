@@ -16,6 +16,8 @@ class Mesh
   std::vector<Vector3> vertex_normals;
   std::vector<Vector3i> triangles;
   std::vector<int> triangle_material_id;
+  bool weighted = false;
+  int bone_id;
   std::vector<Texture *> textures;
   Mesh& operator+=(const Mesh& other);
 };
