@@ -49,8 +49,8 @@ void SaveImage(int imageId, int width, int height, int numChannels, void *data) 
     stbi_write_png(filename.string().c_str(), width, height, numChannels, data, 0);
 }
 
-void SaveImage(std::string name, int width, int height, int numChannels, void *data) {
-    auto filename = ((std::filesystem::current_path() / name));
+void SaveImage(std::filesystem::path exportFolder, std::string name, int width, int height, int numChannels, void *data) {
+    auto filename = ((exportFolder / name));
 
     stbi_write_png(filename.string().c_str(), width, height, numChannels, data, 0);
 }

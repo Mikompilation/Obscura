@@ -33,7 +33,7 @@ aiMaterial *FindMaterial(std::vector<aiMaterial *> materials, const std::string&
     return currentMaterial;
 }
 
-aiMaterial *CreateNewMaterial(const std::string &name, Texture *t, SGDMATERIAL *pMaterial) {
+aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::string &name, Texture *t, SGDMATERIAL *pMaterial) {
     auto s = aiString(name);
     auto currentMaterial = new aiMaterial();
 
@@ -49,7 +49,7 @@ aiMaterial *CreateNewMaterial(const std::string &name, Texture *t, SGDMATERIAL *
     }
 
     auto texName = name + ".png";
-    SaveImage(texName, t->GetWidth(), t->GetHeight(), 4, t->GetRawData());
+    SaveImage(exportFolder, texName, t->GetWidth(), t->GetHeight(), 4, t->GetRawData());
     auto b = aiString(texName);
     currentMaterial->AddProperty(&b, AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0));
 

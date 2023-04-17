@@ -19,8 +19,15 @@ aiScene *scene = new aiScene();
 std::vector<aiMesh*> aiMeshes;
 std::vector<aiMaterial*> aiMaterials;
 std::vector<aiTexture*> aiTextures;
+std::filesystem::path exportFolder;
 
 void DisplayFF2Model(const char *filename) {
+    auto file = std::filesystem::path(filename);
+    auto fn = file.filename().replace_extension("");
+    exportFolder = std::filesystem::current_path() / fn;
+    std::filesystem::create_directories(exportFolder);
+    auto exportFn = file.filename().replace_extension(".dae").filename();
+
     auto pakFile = (PK2_HEAD *) ReadFullFile(filename);
     auto mdlPak = (PK2_HEAD *) GetFileInPak(pakFile, 0);
     auto texturePak = (PK2_HEAD *) GetFileInPak(pakFile, 1);
@@ -63,8 +70,6 @@ void DisplayFF2Model(const char *filename) {
         }
     }
 
-    auto file = std::filesystem::path(filename);
-
     scene->mRootNode->mMeshes = new unsigned int[aiMeshes.size()];
     scene->mRootNode->mNumMeshes = aiMeshes.size();
 
@@ -81,8 +86,9 @@ void DisplayFF2Model(const char *filename) {
     scene->mTextures = aiTextures.data();
 
     Assimp::Exporter exporter;
-    auto result = exporter.Export(scene, "obj", (std::filesystem::current_path() / file.filename().replace_extension(".obj").filename()).string(),
-                                  aiProcess_ValidateDataStructure | aiProcess_ImproveCacheLocality | aiProcess_OptimizeMeshes);
+    auto exporterOptions = aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes;
+    exporter.Export(scene, "collada", (exportFolder / exportFn).string(), exporterOptions);
+    auto result = exporter.Export(scene, "obj", (exportFolder / exportFn.replace_extension("obj").filename()).string(), exporterOptions);
 
     if (result != aiReturn_SUCCESS)
     {
@@ -153,7 +159,10 @@ void HandleVUVNDataBlock(SGDPROCUNITHEADER *pHead) {
 void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
     SGDVUMESHPOINTNUM *pMeshInfo;
 
-    if (pHead->VUMeshDesc.ucMeshType == 0x80) {
+    if (pHead->VUMeshDesc.ucMeshType == 0) {
+        return;
+    }
+    else if (pHead->VUMeshDesc.ucMeshType == 0x80) {
         // This just adds a triangle below the character
         pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
         return;
@@ -202,7 +211,7 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             t = textures[sgdMaterial->iMaterialIndex];
         }
 
-        currentMaterial = CreateNewMaterial(materialName, t, pMaterial);
+        currentMaterial = CreateNewMaterial(exportFolder, materialName, t, pMaterial);
 
         aiMaterials.push_back(currentMaterial);
     }
@@ -237,7 +246,7 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             if (pHead->VUMeshDesc.ucMeshType == iMT_2) {
                 HandleNVLMesh(offsetVertex + currPointIndex, v, n);
                 auto color = pVMCD->avColor[currPointIndex];
-                aiMesh->mColors[0][currPointIndex] = {color.x / 128.0f, color.y / 128.0f, color.z / 128.0f, 0.0f};
+                aiMesh->mColors[0][currPointIndex] = {1.0f, 1.0f, 1.0f, 0.5f};
             }
             /// VectorType == 0x5
             else if (pHead->VUMeshDesc.MeshType.NVL == true) {

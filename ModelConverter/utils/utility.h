@@ -1,6 +1,8 @@
 #ifndef OBSCURA_UTILITY_H
 #define OBSCURA_UTILITY_H
 
+#include <filesystem>
+
 #if INTPTR_MAX == INT64_MAX
 #include <cstdint>
 #endif
@@ -19,6 +21,6 @@ unsigned int * GetNextUnpackAddr(unsigned int *prim);
 char *ReadFullFile(const char *filename);
 void SaveImage(int width, int height, int numChannels, void *data);
 void SaveImage(int imageId, int width, int height, int numChannels, void *data);
-void SaveImage(std::string name, int width, int height, int numChannels, void *data);
+void SaveImage(std::filesystem::path exportFolder, std::string name, int width, int height, int numChannels, void *data);
 
 #endif //OBSCURA_UTILITY_H
