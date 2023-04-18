@@ -1,6 +1,9 @@
 #include "assimp_utils.h"
 #include "assimp/texture.h"
 #include "utility.h"
+#include "assimp/Exporter.hpp"
+#include "assimp/postprocess.h"
+#include "logging.h"
 
 aiMesh *CreateNewMesh(int numPoints, int matIndex) {
     auto m = new struct aiMesh();
@@ -83,4 +86,26 @@ aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::str
     }
 
     return currentMaterial;
+}
+
+void ExportScene(std::filesystem::path exportFolder, const std::string& format, aiScene *scene, int exporterOptions) {
+    Assimp::Exporter exporter;
+    std::string extension = format;
+
+    if (format == "collada")
+    {
+        extension = "dae";
+    }
+
+    auto result = exporter.Export(scene, format, (exportFolder.replace_extension(extension)).string(), exporterOptions);
+
+    if (result != aiReturn_SUCCESS)
+    {
+        programLogger->error("Failed to export the scene: {}", exporter.GetErrorString());
+    }
+    else
+    {
+        programLogger->info("Successfully exported the scene to format {}", format);
+    }
+
 }

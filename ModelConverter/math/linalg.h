@@ -46,5 +46,6 @@ Vector3& operator*(Vector3& source, const float factor);
 Vector3& operator+(Vector3& source, const Vector3& target);
 Matrix4x4 MatrixTranspose(const Matrix4x4 m);
 Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat);
+void Vector3Normalize(Vector3 &v);
 
 #endif //OBSCURA_LINALG_H

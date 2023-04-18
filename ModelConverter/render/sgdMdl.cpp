@@ -85,19 +85,8 @@ void DisplayFF2Model(const char *filename) {
     scene->mNumTextures = aiTextures.size();
     scene->mTextures = aiTextures.data();
 
-    Assimp::Exporter exporter;
-    auto exporterOptions = aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes;
-    exporter.Export(scene, "collada", (exportFolder / exportFn).string(), exporterOptions);
-    auto result = exporter.Export(scene, "obj", (exportFolder / exportFn.replace_extension("obj").filename()).string(), exporterOptions);
-
-    if (result != aiReturn_SUCCESS)
-    {
-        programLogger->error("Failed to export the scene: {}", exporter.GetErrorString());
-    }
-    else
-    {
-        programLogger->info("Successfully exported the scene");
-    }
+    ExportScene(exportFolder / exportFn, "obj", scene, aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes);
+    ExportScene(exportFolder / exportFn, "collada", scene, aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes);
 }
 
 void HandleProcUnit(SGDFILEHEADER *sgd) {
@@ -246,7 +235,8 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             if (pHead->VUMeshDesc.ucMeshType == iMT_2) {
                 HandleNVLMesh(offsetVertex + currPointIndex, v, n);
                 auto color = pVMCD->avColor[currPointIndex];
-                aiMesh->mColors[0][currPointIndex] = {1.0f, 1.0f, 1.0f, 0.5f};
+                Vector3Normalize(color);
+                aiMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z, 0.0f};
             }
             /// VectorType == 0x5
             else if (pHead->VUMeshDesc.MeshType.NVL == true) {
@@ -255,22 +245,13 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED) {
                 HandleWeightedMesh(offsetVertex + currPointIndex, v, n);
-                aiMesh->mNumBones = 1;
-                aiMesh->mBones = new aiBone*[1];
-                aiMesh->mBones[0] = new aiBone();
-                aiMesh->mBones[0]->mName = aiString(materialName);
-                aiMesh->mBones[0]->mNumWeights = 1;
-                aiMesh->mBones[0]->mWeights = new aiVertexWeight[1];
-                aiMesh->mBones[0]->mWeights[0].mVertexId = currPointIndex;
-                aiMesh->mBones[0]->mWeights[0].mWeight = 1.0f;
-                const auto coord = GetCurrentCoordinate();
-                aiMesh->mBones[0]->mOffsetMatrix = *(aiMatrix4x4*)&coord->matLocalWorld;
             }
             /// MeshType == IMT_2F
             else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
                 HandleFlatMesh(offsetVertex + currPointIndex, v, n);
                 auto color = pVMCD->avColor[currPointIndex];
-                aiMesh->mColors[0][currPointIndex] = {color.x / 255.0f, color.y / 255.0f, color.z / 255.0f, 0.0f};
+                Vector3Normalize(color);
+                aiMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z, 0.0f};
             }
             /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_UNIQUE) {
