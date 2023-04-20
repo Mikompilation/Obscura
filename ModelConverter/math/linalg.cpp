@@ -103,7 +103,7 @@ Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat) {
 }
 
 void Vector3Normalize(Vector3 &v) {
-    float length = std::sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 
     if (length == 0.0f) {
         return;
