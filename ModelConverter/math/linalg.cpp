@@ -1,4 +1,4 @@
-#include <cstdlib>
+#include <cmath>
 #include "linalg.h"
 
 void Vector2Clamp(Vector2 &v) {
@@ -37,12 +37,13 @@ Vector3 &operator+=(Vector3 &source, const Vector3 &target) {
     return source;
 }
 
-Vector3 &operator+(Vector3 &source, const Vector3 &target) {
-    source.x = source.x + target.x;
-    source.y = source.y + target.y;
-    source.z = source.z + target.z;
+Vector3& operator+(Vector3 &source, Vector3 &target) {
+    Vector3 result = {0};
+    result.x = source.x + target.x;
+    result.y = source.y + target.y;
+    result.z = source.z + target.z;
 
-    return source;
+    return result;
 }
 
 Vector3 &operator+=(Vector3 &source, const Vector4 *target) {
@@ -102,7 +103,7 @@ Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat) {
 }
 
 void Vector3Normalize(Vector3 &v) {
-    float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    float length = std::sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 
     if (length == 0.0f) {
         return;
@@ -111,5 +112,63 @@ void Vector3Normalize(Vector3 &v) {
     v.x /= length;
     v.y /= length;
     v.z /= length;
+}
 
+void Vector4Normalize(Vector4 &v) {
+    float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+
+    if (length == 0.0f) {
+        return;
+    }
+
+    v.x /= length;
+    v.y /= length;
+    v.z /= length;
+    v.w /= length;
+}
+
+Vector3 Vector3CrossProduct(Vector3 v1, Vector3 v2) {
+    Vector3 result = {0};
+
+    result.x = v1.y * v2.z - v1.z * v2.y;
+    result.y = v1.z * v2.x - v1.x * v2.z;
+    result.z = v1.x * v2.y - v1.y * v2.x;
+
+    return result;
+}
+
+Vector3 operator-(Vector3 &source, const Vector3 &target) {
+    Vector3 result = {0};
+
+    result.x = source.x - target.x;
+    result.y = source.y - target.y;
+    result.z = source.z - target.z;
+
+    return result;
+}
+
+Vector3 Triangle(Vector3 v0, Vector3 v1, Vector3 v2, bool clockwise)
+{
+    Vector3 u = v1 - v0;    // edge v0 -> v1
+    Vector3 v = v2 - v0;    // edge v0 -> v2
+
+    auto l = Vector3CrossProduct(u, v);
+
+    Vector3Normalize(l);
+    auto normal = l * (clockwise ? 1.0f : -1.0f);
+    return normal;
+}
+
+float Vector3DotProduct(Vector3 v1, Vector3 v2) {
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
+Vector3 operator/(Vector3 &source, float factor) {
+    Vector3 result = {0};
+
+    result.x = source.x / factor;
+    result.y = source.y / factor;
+    result.z = source.z / factor;
+
+    return result;
 }

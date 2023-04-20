@@ -9,7 +9,7 @@
 #include "assimp/scene.h"
 #include <filesystem>
 
-aiMesh* CreateNewMesh(int numPoints, int matIndex);
+aiMesh* CreateNewMesh(unsigned int numPoints, int matIndex);
 aiMaterial *FindMaterial(std::vector<aiMaterial *> materials, const std::string& name, int *matIndex);
 aiMaterial* CreateNewMaterial(std::filesystem::path exportFolder, const std::string& name, Texture *t, SGDMATERIAL* pMaterial);
 void ExportScene(std::filesystem::path exportFolder, const std::string& format, aiScene *scene, int exporterOptions);

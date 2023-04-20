@@ -5,9 +5,10 @@
 #include "assimp/postprocess.h"
 #include "logging.h"
 
-aiMesh *CreateNewMesh(int numPoints, int matIndex) {
+aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     auto m = new struct aiMesh();
     m->mMaterialIndex = matIndex;
+    m->mPrimitiveTypes = aiPrimitiveType_TRIANGLE;
 
     m->mNumVertices = numPoints;
     m->mVertices = new aiVector3D[numPoints];
@@ -41,6 +42,11 @@ aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::str
     auto currentMaterial = new aiMaterial();
 
     currentMaterial->AddProperty(&s,  AI_MATKEY_NAME);
+    pMaterial->vDiffuse.w /= 128.0f;
+    pMaterial->vAmbient.w /= 128.0f;
+    pMaterial->vEmission.w /= 128.0f;
+    pMaterial->vSpecular.w /= 128.0f;
+
     currentMaterial->AddProperty(&pMaterial->vDiffuse, 1, AI_MATKEY_COLOR_DIFFUSE);
     currentMaterial->AddProperty(&pMaterial->vAmbient, 1, AI_MATKEY_COLOR_AMBIENT);
     currentMaterial->AddProperty(&pMaterial->vEmission, 1, AI_MATKEY_COLOR_EMISSIVE);
