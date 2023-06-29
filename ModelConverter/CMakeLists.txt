@@ -38,7 +38,7 @@ add_executable(ModelConverter
         game/Exporter.h
         utils/assimp_utils.cpp
         utils/assimp_utils.h
-        )
+        game/gra3dSGDData.cpp game/gra3dSGDData.h)
 
 target_link_libraries(ModelConverter PRIVATE spdlog assimp)
 

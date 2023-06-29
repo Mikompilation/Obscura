@@ -3,6 +3,7 @@
 #include "game/sgd.h"
 #include "utils/logging.h"
 #include "math/linalg.h"
+#include "assimp/mesh.h"
 
 void DisplayFF2Model(const char* filename);
 void HandleProcUnit(SGDFILEHEADER *sgd);
@@ -16,7 +17,7 @@ void HandleGsImageDataBlock(SGDPROCUNITHEADER* pHead);
 void HandleTri2DataBlock(SGDPROCUNITHEADER* pHead);
 void HandleFlatMesh(int meshIndex, Vector3& vertex, Vector3& normal);
 void HandleNVLMesh(int meshIndex, Vector3& vertex, Vector3& normal);
-void HandleWeightedMesh(int meshIndex, Vector3& vertex, Vector3& normal);
+void HandleWeightedMesh(int meshIndex, int currentPoint, Vector3& vertex, Vector3& normal, aiMesh* mesh);
 void HandleUniqueMesh(int meshIndex, Vector3& vertex, Vector3& normal);
 void HandleTextureMesh(int meshIndex, Vector3& vertex, Vector3& normal);
 SGDCOORDINATE* GetCurrentCoordinate();

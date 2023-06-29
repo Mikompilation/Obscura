@@ -88,8 +88,31 @@ Matrix4x4 MatrixTranspose(const Matrix4x4 m) {
     return outM;
 }
 
+void MatrixTranspose(Matrix4x4* m) {
+    Matrix4x4 outM{};
+
+    // Too lazy right now to optimize this
+    for (auto i = 0; i < 4; i++)
+    {
+        for (auto k = 0; k < 4; k++)
+        {
+            outM.m[i][k] = m->m[i][k];
+        }
+    }
+
+    for (auto i = 0; i < 4; i++)
+    {
+        for (auto k = 0; k < 4; k++)
+        {
+            m->m[i][k] = outM.m[k][i];
+        }
+    }
+}
+
 Vector3 Vector3Transform(Vector3 v, Matrix4x4 mat) {
     Vector3 result = {0};
+
+    mat = MatrixTranspose(mat);
 
     float x = v.x;
     float y = v.y;
@@ -172,3 +195,37 @@ Vector3 operator/(Vector3 &source, float factor) {
 
     return result;
 }
+
+void sceVu0CopyMatrix(Matrix4x4 &dest, Matrix4x4 &src) {
+    dest.row1.x = src.row1.x;
+    dest.row1.y = src.row1.y;
+    dest.row1.z = src.row1.z;
+    dest.row1.w = src.row1.w;
+
+    dest.row2.x = src.row2.x;
+    dest.row2.y = src.row2.y;
+    dest.row2.z = src.row2.z;
+    dest.row2.w = src.row2.w;
+
+    dest.row3.x = src.row3.x;
+    dest.row3.y = src.row3.y;
+    dest.row3.z = src.row3.z;
+    dest.row3.w = src.row3.w;
+
+    dest.row4.x = src.row4.x;
+    dest.row4.y = src.row4.y;
+    dest.row4.z = src.row4.z;
+    dest.row4.w = src.row4.w;
+}
+
+void sceVu0MulMatrix(Matrix4x4 *dest, Matrix4x4 *src1, Matrix4x4 *src2) {
+    for (auto i = 0; i < 4; i++) {
+        for (auto j = 0; j < 4; j++) {
+            dest->m[i][j] = src1->m[i][0] * src2->m[0][j] +
+                            src1->m[i][1] * src2->m[1][j] +
+                            src1->m[i][2] * src2->m[2][j] +
+                            src1->m[i][3] * src2->m[3][j];
+        }
+    }
+}
+

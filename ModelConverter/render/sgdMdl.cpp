@@ -7,6 +7,8 @@
 #include "assimp/Exporter.hpp"
 #include "assimp/postprocess.h"
 #include "utils/assimp_utils.h"
+#include "assimp/SkeletonMeshBuilder.h"
+#include "game/gra3dSGDData.h"
 #include <vector>
 
 std::vector<Texture *> textures;
@@ -17,9 +19,50 @@ SGDCOORDINATEDESC *sgdCoordintate;
 SGDVUMATERIALDESC *sgdMaterial;
 aiScene *scene = new aiScene();
 std::vector<aiMesh*> aiMeshes;
+std::vector<std::vector<unsigned int>> aiWeightedMeshesIndex;
+std::vector<aiNode*> aiNodes;
 std::vector<aiMaterial*> aiMaterials;
 std::vector<aiTexture*> aiTextures;
 std::filesystem::path exportFolder;
+
+void HandleNodes()
+{
+    auto coord = GetCoordinatePtr(sgdTop);
+    scene->mRootNode = aiNodes[0];
+
+    for (auto i = 0; i < aiNodes.size(); i++)
+    {
+        aiNodes[i]->mNumMeshes = aiWeightedMeshesIndex[i].size();
+        aiNodes[i]->mMeshes = aiWeightedMeshesIndex[i].data();
+
+        for(auto m : aiWeightedMeshesIndex[i])
+        {
+            if (aiMeshes[m]->mBones != nullptr)
+            {
+                continue;
+            }
+
+            CreateBone(aiMeshes[m], &coord[i].matCoord, aiNodes[i]->mName);
+        }
+
+        std::vector<aiNode*> children;
+        for (auto j = 0; j < aiNodes.size(); j++)
+        {
+            if (aiNodes[j]->mParent == aiNodes[i] && j != i)
+            {
+                children.push_back(aiNodes[j]);
+            }
+        }
+
+        aiNodes[i]->mNumChildren = children.size();
+        aiNodes[i]->mChildren = new aiNode*[children.size()];
+
+        for (auto j = 0; j < children.size(); j++)
+        {
+            aiNodes[i]->mChildren[j] = children[j];
+        }
+    }
+}
 
 void DisplayFF2Model(const char *filename) {
     auto file = std::filesystem::path(filename);
@@ -32,8 +75,6 @@ void DisplayFF2Model(const char *filename) {
     auto mdlPak = (PK2_HEAD *) GetFileInPak(pakFile, 0);
     auto texturePak = (PK2_HEAD *) GetFileInPak(pakFile, 1);
     sgdTop = (SGDFILEHEADER *) GetFileInPak(mdlPak, 0);
-
-    scene->mRootNode = new aiNode();
 
     if (pakFile->pack_num != 1) {
         if (mdlPak->pack_num == SGD_VALID_VERSIONID) {
@@ -56,6 +97,28 @@ void DisplayFF2Model(const char *filename) {
         }
     }
 
+    auto coord = GetCoordinatePtr(sgdTop);
+
+    for (auto i = 0; i < sgdTop->uiNumBlock - 1; i++)
+    {
+        aiWeightedMeshesIndex.emplace_back(std::vector<unsigned int>());
+        auto n = new aiNode();
+        n->mName = "Node" + std::to_string(i);
+        aiNodes.emplace_back(n);
+    }
+
+    sgdCalcBoneCoordinate(sgdTop, coord, sgdTop->uiNumBlock - 1);
+
+    for (auto i = 0; i < aiNodes.size(); i++)
+    {
+        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&coord[i].matCoord);
+
+        aiMat = aiMatrix4x4().FromEulerAnglesXYZ(coord[i].vRot.x, coord[i].vRot.y, coord[i].vRot.z) * aiMat;
+
+        aiNodes[i]->mTransformation = aiMat;
+        aiNodes[i]->mParent = coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
+    }
+
     if (mdlPak->pack_num == SGD_VALID_VERSIONID) {
         sgdTop = (SGDFILEHEADER *) mdlPak;
         sgdCurr = (SGDFILEHEADER *) mdlPak;
@@ -70,15 +133,9 @@ void DisplayFF2Model(const char *filename) {
         }
     }
 
-    scene->mFlags |= AI_SCENE_FLAGS_VALIDATED;
+    scene->mFlags |= AI_SCENE_FLAGS_VALIDATED | AI_SCENE_FLAGS_VALIDATION_WARNING;
 
-    scene->mRootNode->mMeshes = new unsigned int[aiMeshes.size()];
-    scene->mRootNode->mNumMeshes = aiMeshes.size();
-
-    for (auto i = 0; i < aiMeshes.size(); i++)
-    {
-        scene->mRootNode->mMeshes[i] = i;
-    }
+    HandleNodes();
 
     scene->mNumMeshes = aiMeshes.size();
     scene->mMeshes = aiMeshes.data();
@@ -87,8 +144,8 @@ void DisplayFF2Model(const char *filename) {
     scene->mNumTextures = aiTextures.size();
     scene->mTextures = aiTextures.data();
 
-    ExportScene(exportFolder / exportFn, "obj", scene, aiProcess_OptimizeMeshes);
-    ExportScene(exportFolder / exportFn, "collada", scene, aiProcess_OptimizeMeshes);
+    ExportScene(exportFolder / exportFn, "obj", scene, aiProcess_ValidateDataStructure | aiProcess_EmbedTextures);
+    ExportScene(exportFolder / exportFn, "collada", scene, aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes);
 }
 
 void HandleProcUnit(SGDFILEHEADER *sgd) {
@@ -156,7 +213,6 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
     else if (pHead->VUMeshDesc.ucMeshType == 0x80) {
         // This just adds a triangle below the character
         pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
-        return;
     }
     else {
         pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
@@ -223,26 +279,15 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             numPoint = pMeshInfo[i].uiPointNum;
         }
 
+        if (numPoint == 0)
+        {
+            continue;
+        }
+
         auto aiMesh = CreateNewMesh(numPoint, matIndex);
 
         if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
             aiMesh->mColors[0] = new aiColor4D[numPoint];
-        }
-
-        if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED)
-        {
-            aiMesh->mNumBones = 1;
-            aiMesh->mBones = new aiBone*[1];
-            aiMesh->mBones[0] = new aiBone();
-            aiMesh->mBones[0]->mName = aiString("Bone" + std::to_string(aiMeshes.size()));
-            aiMesh->mBones[0]->mNumWeights = numPoint;
-            aiMesh->mBones[0]->mWeights = new aiVertexWeight[numPoint];
-            aiMesh->mBones[0]->mOffsetMatrix = aiMatrix4x4();
-            aiMesh->mBones[0]->mOffsetMatrix.a1 = 1.0f;
-            aiMesh->mBones[0]->mOffsetMatrix.b2 = 1.0f;
-            aiMesh->mBones[0]->mOffsetMatrix.c3 = 1.0f;
-            aiMesh->mBones[0]->mOffsetMatrix.d4 = 1.0f;
-            aiMesh->mBones[0]->mNode = scene->mRootNode;
         }
 
         for (auto currPointIndex = 0; currPointIndex < numPoint; currPointIndex++) {
@@ -262,10 +307,7 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
             }
             /// VectorType == 0x6
             else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED) {
-                HandleWeightedMesh(offsetVertex + currPointIndex, v, n);
-
-                aiMesh->mBones[0]->mWeights[currPointIndex].mVertexId = currPointIndex;
-                aiMesh->mBones[0]->mWeights[currPointIndex].mWeight = 1.0f / numPoint;
+                HandleWeightedMesh(offsetVertex + currPointIndex, currPointIndex, v, n, aiMesh);
             }
             /// MeshType == IMT_2F
             else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
@@ -308,6 +350,10 @@ void HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
                 aiMesh->mFaces[currPointIndex].mIndices[1] = currPointIndex;
                 aiMesh->mFaces[currPointIndex].mIndices[2] = currPointIndex + 2;
             }
+        }
+
+        if (pHead->VUMeshDesc.MeshType.VTYPE != SVA_WEIGHTED) {
+            aiWeightedMeshesIndex[sgdCoordintate->iCoordId0].push_back(aiMeshes.size());
         }
 
         sgdMeshData = (SGDVUMESHSTDATA*) &sgdMeshData->astData[numPoint];
@@ -429,8 +475,7 @@ void HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
 
     vertex = vV[0];
     normal = rVUVNData->VUVNData_Preset.vt2f.avNormal[meshIndex];
-    vertex = Vector3Transform(
-            vertex, MatrixTranspose(coord[sgdCoordintate->iCoordId0].matCoord));
+    vertex = Vector3Transform(vertex, coord[sgdCoordintate->iCoordId0].matCoord);
 }
 
 void HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
@@ -441,46 +486,63 @@ void HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
     vertex = pVUVNData->VUVNData_Preset.avt2[meshIndex].vVertex;
     normal = pVUVNData->VUVNData_Preset.avt2[meshIndex].vNormal;
 
-    vertex = Vector3Transform(
-            vertex, MatrixTranspose(coord[sgdCoordintate->iCoordId0].matCoord));
+    vertex = Vector3Transform(vertex, coord[sgdCoordintate->iCoordId0].matCoord);
 }
 
-void HandleWeightedMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
+void HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex, Vector3 &normal, aiMesh* mesh) {
     auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
     const auto coord = GetCurrentCoordinate();
     const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
 
     const auto pWeightedVertex3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
-    const auto pWeightedNormal3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
+    const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
 
     auto wVertex = pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
 
     auto v0 = Vector3Transform(
             {wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z},
-            MatrixTranspose(coord[wVertex.ucBoneId0].matCoord));
+            coord[wVertex.ucBoneId0].matCoord);
 
     auto v1 = Vector3Transform(
-            wVertex.aui, MatrixTranspose(coord[wVertex.ucBoneId1].matCoord));
+            wVertex.aui, coord[wVertex.ucBoneId1].matCoord);
 
     auto w1 = 255 - wVertex.vVertex.w;
 
     vertex = (v0 * (wVertex.vVertex.w / 255)) + (v1 * (w1 / 255));
 
-    auto wNormal = pWeightedNormal3[pVUVNDataWeighted3[meshIndex].pNormal];
-
-    auto n0 = Vector3Transform(
-            {wNormal.vVertex.x, wNormal.vVertex.y, wNormal.vVertex.z},
-            MatrixTranspose(coord[wNormal.ucBoneId0].matCoord));
-
-    auto n1 = Vector3Transform(
-            wNormal.aui, MatrixTranspose(coord[wNormal.ucBoneId1].matCoord));
-
-    auto w2 = 255 - wNormal.vVertex.w;
-
-    auto n = (n0 * (wNormal.vVertex.w / 255)) + (n1 * (w2 / 255));
+    auto n = pWeightedNormal3[pVUVNDataWeighted3[meshIndex].pNormal];
 
     normal = {n.x, n.y, n.z};
-    Vector3Normalize(normal);
+
+    mesh->mNumBones = 2;
+    mesh->mBones = new aiBone*[mesh->mNumBones];
+
+    if (currentPoint == 0)
+    {
+        aiWeightedMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+    }
+
+    auto bId = new int[2] { (int) wVertex.ucBoneId0, (int) wVertex.ucBoneId1};
+    auto bWeight = (float*) &wVertex.aui;
+    auto coordNameId = (int*)sgdCoordintate;
+
+    for (auto k = 0; k < mesh->mNumBones; k++)
+    {
+        mesh->mBones[k] = new aiBone();
+        mesh->mBones[k]->mName = aiNodes[bId[k]]->mName;
+
+        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&coord[bId[k]].matCoord).Inverse().Transpose();
+
+        mesh->mBones[k]->mOffsetMatrix = aiMat;
+        mesh->mBones[k]->mNumWeights = mesh->mNumVertices;
+        mesh->mBones[k]->mWeights = new aiVertexWeight[mesh->mNumVertices];
+
+        for (auto j = 0; j < mesh->mNumVertices; j++)
+        {
+            mesh->mBones[k]->mWeights[j].mVertexId = currentPoint;
+            mesh->mBones[k]->mWeights[j].mWeight = 1.0f / mesh->mNumBones;
+        }
+    }
 }
 
 void HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
@@ -497,9 +559,9 @@ void HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
     auto wVertex = pSVAUniqueVertex[pVUVNDataWeighted3[meshIndex]
             .pWeightedVertex];
 
-    vertex = Vector3Transform(
-            {wVertex.x, wVertex.y, wVertex.z},
-            MatrixTranspose(coord[sgdCoordintate->iCoordId0].matCoord));
+    vertex = {wVertex.x, wVertex.y, wVertex.z};
+
+    vertex = Vector3Transform(vertex, coord[sgdCoordintate->iCoordId0].matCoord);
 
     auto n = pSVAUniqueNormal[pVUVNDataWeighted3[meshIndex].pNormal];
 

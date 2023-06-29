@@ -113,5 +113,27 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
     {
         programLogger->info("Successfully exported the scene to format {}", format);
     }
+}
+
+void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name) {
+    mesh->mNumBones = 1;
+    mesh->mBones = new aiBone*[mesh->mNumBones];
+
+    for (auto k = 0; k < mesh->mNumBones; k++)
+    {
+        mesh->mBones[k] = new aiBone();
+        mesh->mBones[k]->mName = aiString(name);
+
+        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)mat).Inverse().Transpose();
+        mesh->mBones[k]->mOffsetMatrix = aiMat;
+        mesh->mBones[k]->mNumWeights = mesh->mNumVertices;
+        mesh->mBones[k]->mWeights = new aiVertexWeight[mesh->mNumVertices];
+
+        for (auto j = 0; j < mesh->mNumVertices; j++)
+        {
+            mesh->mBones[k]->mWeights[j].mVertexId = j;
+            mesh->mBones[k]->mWeights[j].mWeight = 1.0f / (float) mesh->mNumBones;
+        }
+    }
 
 }
