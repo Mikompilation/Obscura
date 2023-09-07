@@ -36,6 +36,24 @@ char *ReadFullFile(const char *filename) {
     return buffer;
 }
 
+char *ReadFullFile(std::filesystem::path filename) {
+    if (!std::filesystem::exists(filename)) {
+        programLogger->critical("Could not find the file: {}", filename.string());
+        programLogger->critical("Exiting the application...");
+        exit(-1);
+    }
+
+    auto fileSize = std::filesystem::file_size(filename);
+
+    char *buffer = new char[fileSize];
+    std::ifstream infile(filename, std::ios::binary);
+    infile.read(buffer, fileSize);
+
+    infile.close();
+
+    return buffer;
+}
+
 void SaveImage(int width, int height, int numChannels, void *data) {
     auto filename = ((std::filesystem::current_path() / (std::to_string(image_id) + ".png")));
 

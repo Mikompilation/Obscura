@@ -19,6 +19,7 @@ T* RelOffsetToPtr(const void* ptr, const int offset)
 
 unsigned int * GetNextUnpackAddr(unsigned int *prim);
 char *ReadFullFile(const char *filename);
+char *ReadFullFile(std::filesystem::path filename);
 void SaveImage(int width, int height, int numChannels, void *data);
 void SaveImage(int imageId, int width, int height, int numChannels, void *data);
 void SaveImage(std::filesystem::path exportFolder, std::string name, int width, int height, int numChannels, void *data);

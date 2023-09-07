@@ -4,6 +4,20 @@
 #include "assimp/Exporter.hpp"
 #include "assimp/postprocess.h"
 #include "logging.h"
+#include "assimp/cimport.h"
+
+int GetNumberOfParents(aiNode* n)
+{
+    int numParents = 0;
+
+    while(n->mParent != nullptr)
+    {
+        numParents++;
+        n = n->mParent;
+    }
+
+    return numParents;
+}
 
 aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     auto m = new struct aiMesh();
@@ -17,6 +31,10 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     m->mNumUVComponents[0] = 2;
     m->mNumFaces = numPoints - 2;
     m->mFaces = new aiFace[numPoints - 2];
+
+    //m->mAABB = aiAABB();
+    //m->mAABB.mMin = aiVector3D(boundingBoxMin.x, boundingBoxMin.y, boundingBoxMin.z);
+    //m->mAABB.mMax = aiVector3D(boundingBoxMax.x, boundingBoxMax.y, boundingBoxMax.z);
 
     return m;
 }
@@ -42,8 +60,8 @@ aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::str
     auto currentMaterial = new aiMaterial();
 
     currentMaterial->AddProperty(&s,  AI_MATKEY_NAME);
-    pMaterial->vDiffuse.w /= 128.0f;
-    pMaterial->vAmbient.w /= 128.0f;
+    pMaterial->vDiffuse.w /=  128.0f;
+    pMaterial->vAmbient.w /=  128.0f;
     pMaterial->vEmission.w /= 128.0f;
     pMaterial->vSpecular.w /= 128.0f;
 
@@ -102,12 +120,16 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
     {
         extension = "dae";
     }
+    if (format == "gltf2")
+    {
+        extension = "gltf";
+    }
 
     auto result = exporter.Export(scene, format, (exportFolder.replace_extension(extension)).string(), exporterOptions);
 
     if (result != aiReturn_SUCCESS)
     {
-        programLogger->error("Failed to export the scene: {}", exporter.GetErrorString());
+        programLogger->error("Failed to export the scene: {}", aiGetErrorString());
     }
     else
     {
@@ -115,8 +137,8 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
     }
 }
 
-void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name) {
-    mesh->mNumBones = 1;
+void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name, int numBone) {
+    mesh->mNumBones = numBone;
     mesh->mBones = new aiBone*[mesh->mNumBones];
 
     for (auto k = 0; k < mesh->mNumBones; k++)
@@ -132,8 +154,24 @@ void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name) {
         for (auto j = 0; j < mesh->mNumVertices; j++)
         {
             mesh->mBones[k]->mWeights[j].mVertexId = j;
-            mesh->mBones[k]->mWeights[j].mWeight = 1.0f / (float) mesh->mNumBones;
+            mesh->mBones[k]->mWeights[j].mWeight = 1.0f;
         }
     }
+}
 
+void SetupMeshFace(aiMesh* currentMesh, int currPointIndex)
+{
+    currentMesh->mFaces[currPointIndex].mNumIndices = 3;
+    currentMesh->mFaces[currPointIndex].mIndices = new unsigned int[3];
+
+    if (currPointIndex % 2 == 0) {
+        currentMesh->mFaces[currPointIndex].mIndices[0] = currPointIndex;
+        currentMesh->mFaces[currPointIndex].mIndices[1] = currPointIndex + 1;
+        currentMesh->mFaces[currPointIndex].mIndices[2] = currPointIndex + 2;
+    }
+    else {
+        currentMesh->mFaces[currPointIndex].mIndices[0] = currPointIndex + 1;
+        currentMesh->mFaces[currPointIndex].mIndices[1] = currPointIndex;
+        currentMesh->mFaces[currPointIndex].mIndices[2] = currPointIndex + 2;
+    }
 }
