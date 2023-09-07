@@ -14,7 +14,7 @@ aiMesh* CreateNewMesh(unsigned int numPoints, int matIndex);
 aiMaterial *FindMaterial(std::vector<aiMaterial *> materials, const std::string& name, int *matIndex);
 aiMaterial* CreateNewMaterial(std::filesystem::path exportFolder, const std::string& name, Texture *t, SGDMATERIAL* pMaterial);
 void ExportScene(std::filesystem::path exportFolder, const std::string& format, aiScene *scene, int exporterOptions);
-void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name, int numBone);
+void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name);
 void SetupMeshFace(aiMesh* currentMesh, int currPointIndex);
 
 #endif //OBSCURA_ASSIMP_UTILS_H

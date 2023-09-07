@@ -137,8 +137,8 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
     }
 }
 
-void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name, int numBone) {
-    mesh->mNumBones = numBone;
+void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name) {
+    mesh->mNumBones = 1;
     mesh->mBones = new aiBone*[mesh->mNumBones];
 
     for (auto k = 0; k < mesh->mNumBones; k++)

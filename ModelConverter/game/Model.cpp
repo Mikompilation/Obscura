@@ -71,16 +71,8 @@ void Model::BuildScene()
 void Model::ConvertToNodeBinaryTree()
 {
     this->scene->mRootNode = aiNodes[0];
-    //this->scene->mSkeletons
-
-    //std::vector<aiBone*> bones;
     for (auto i = 0; i < aiNodes.size(); i++)
     {
-        //auto coordinateMatrix = this->GetCoordinateMatrix(i);
-        //auto currentMeshBone = bones[i];
-        //bones.emplace_back(new aiBone());
-        //currentMeshBone->mOffsetMatrix = aiMatrix4x4(*(aiMatrix4x4*)&coordinateMatrix).Inverse().Transpose();
-
         aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
         aiNodes[i]->mMeshes = aiMeshesIndex[i].data();
 
@@ -103,18 +95,18 @@ void Model::ConvertToNodeBinaryTree()
 
         for(auto m : aiMeshesIndex[i])
         {
-            //aiMeshes[m]->mNumBones = currentMeshBone-
-
             if (!this->isCharacterModel)
             {
                 break;
             }
+
             if (aiMeshes[m]->mBones != nullptr)
             {
                 continue;
             }
-            auto mat1 = this->GetCoordinateMatrix(i);
-            CreateBone(aiMeshes[m], &mat1, aiNodes[i]->mName, 1);
+
+            auto coordinateMatrix = this->GetCoordinateMatrix(i);
+            CreateBone(aiMeshes[m], &coordinateMatrix, aiNodes[i]->mName);
         }
     }
 }
@@ -214,13 +206,21 @@ void Model::CalculateBoneTransforms()
 
     for (auto i = 0; i < aiNodes.size(); i++)
     {
-        auto matCoord = this->GetCoordinateMatrix(i);
-        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&matCoord);
-
-        aiMat = aiMatrix4x4().FromEulerAnglesXYZ(coord[i].vRot.x, coord[i].vRot.y, coord[i].vRot.z) * aiMat;
-
-        this->aiNodes[i]->mTransformation = aiMat;
         this->aiNodes[i]->mParent = coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
+
+        if (this->aiNodes[i]->mParent == nullptr)
+        {
+            this->aiNodes[i]->mTransformation = aiMatrix4x4();
+            continue;
+        }
+
+        auto matCoord = this->GetCoordinateMatrix(i);
+        auto matCoordParent = this->GetCoordinateMatrix(coord[i].pParent);
+
+        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&matCoord);
+        auto aiMatParent = aiMatrix4x4(*(aiMatrix4x4*)&matCoordParent);
+
+        this->aiNodes[i]->mTransformation = aiMatParent.Inverse().Transpose() * aiMat.Transpose();
     }
 }
 
@@ -541,9 +541,8 @@ void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
 
 void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex, Vector3 &normal, aiMesh* mesh) {
     auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
-    const auto coord = GetCurrentCoordinate();
     const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
-
+    const auto coord = this->GetCurrentCoordinate();
     const auto pWeightedVertex3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
     const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
 
@@ -567,31 +566,6 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
     if (currentPoint == 0)
     {
         aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
-    }
-
-    return;
-
-    mesh->mNumBones = 2;
-    mesh->mBones = new aiBone*[mesh->mNumBones];
-
-    auto bId = new int[2] { (int) wVertex.ucBoneId0, (int) wVertex.ucBoneId1};
-
-    for (auto k = 0; k < mesh->mNumBones; k++)
-    {
-        mesh->mBones[k] = new aiBone();
-        mesh->mBones[k]->mName = aiNodes[bId[k]]->mName;
-
-        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&coord[bId[k]].matCoord).Inverse().Transpose();
-
-        mesh->mBones[k]->mOffsetMatrix = aiMat;
-        mesh->mBones[k]->mNumWeights = mesh->mNumVertices;
-        mesh->mBones[k]->mWeights = new aiVertexWeight[mesh->mNumVertices];
-
-        for (auto j = 0; j < mesh->mNumVertices; j++)
-        {
-            mesh->mBones[k]->mWeights[j].mVertexId = j;
-            mesh->mBones[k]->mWeights[j].mWeight = k == 0 ? w1 / 255 : wVertex.vVertex.w / 255;
-        }
     }
 }
 
