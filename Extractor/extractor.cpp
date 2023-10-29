@@ -7,7 +7,7 @@
 
 void InvalidISOError()
 {
-  std::cerr << "Failed to parse ISO file.";
+  std::cerr << "Failed to parse ISO file." << std::endl;
 
   std::cerr << "If this is a valid Zero/Fatal Frame/Project Zero ISO file"
             << std::endl
@@ -20,14 +20,14 @@ void InvalidISOError()
 }
 
 // Just added this for debugging without needing to pass arguments
-constexpr int DebugMode = 0;
+constexpr int DEBUG_MODE = 0;
 
 int main(int argc, char *argv[])
 {
   std::filesystem::path isoFile;
   std::filesystem::path outputDirectory;
 
-  if (DebugMode)
+  if (DEBUG_MODE)
   {
     isoFile = "HARDCODE YOUR FILE PATH HERE IF DEBUGGING";
     outputDirectory = std::filesystem::current_path() / "output";
