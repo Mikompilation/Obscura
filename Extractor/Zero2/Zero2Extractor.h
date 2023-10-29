@@ -2,6 +2,7 @@
 #pragma once
 
 #include "../ZeroReader.h"
+#include <cstring>
 
 class Zero2Reader : public ZeroReader
 {
