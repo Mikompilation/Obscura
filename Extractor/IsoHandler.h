@@ -4,22 +4,85 @@
 #include <filesystem>
 #include <fstream>
 
-namespace IsoHandler {
-
-class Extractor{
- public:
-  Extractor(const char *isoFile, const char *outputFolder);
-  ~Extractor();
-  void Extract();
+class IsoReader
+{
  private:
-  GameRegion _region;
   std::ifstream _fileStream;
-  std::filesystem::path _outputFolder;
-  void GetGameRegion();
-  char* ReadRangeFile(int startAddress, int readLength);
-  std::string GetFilenameWithPath(int fileId);
+  ZeroGameLookupData _LookupData;
+
+ public:
+  IsoReader(std::string isoFileName)
+  {
+    _fileStream = std::ifstream(isoFileName, std::ios::binary);
+  }
+
+  ~IsoReader()
+  {
+    _fileStream.close();
+  }
+
+  int GetPosition()
+  {
+    return _fileStream.tellg();
+  }
+  bool Seek(std::streamoff offset)
+  {
+    return (!_fileStream.seekg(offset, std::ios::beg)) ? false : true;
+  }
+
+  template<typename T>
+  bool Read(T *entry)
+  {
+    if (!_fileStream.read((char *) (entry), sizeof(T)))
+    {
+      return false;
+    }
+
+    return true;
+  }
+  bool ReadBuffer(char *buffer, unsigned int length)
+  {
+    if (!_fileStream.read((char *) &buffer[0], length))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  ZeroGameLookupData GetLookupData()
+  {
+    return _LookupData;
+  }
+
+  enumGameType GetGameType()
+  {
+    return _LookupData.GameType;
+  }
+
+  bool ValidGameRegion()
+  {
+    if (_fileStream.fail())
+      return false;
+
+    bool isValid = false;
+    std::string GameTitle("", GameTitleIdLength);
+
+    for (auto GameLookup : GAME_LOOKUP_DATA)
+    {
+      _fileStream.seekg(GameLookup.GameTitleOffset, std::ios::beg);
+      _fileStream.read(&GameTitle[0], GameTitleIdLength);
+
+      if (0 == GameLookup.GameTitle.compare(GameTitle))
+      {
+        _LookupData = GameLookup;
+        isValid = true;
+        break;
+      }
+    }
+
+    return isValid;
+  }
 };
 
 void DecompressFile(std::string file);
-
-}

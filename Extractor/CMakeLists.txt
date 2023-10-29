@@ -11,4 +11,13 @@ add_executable(Extractor
         IsoHandler.h
         ZeroFileType.h
         Constants.h
+
+        ZeroReader.h
+	    Zero1/Zero1Extractor.cpp
+	    Zero1/Zero1Extractor.h
+    
+	    Zero2/Zero2Extractor.cpp
+	    Zero2/Zero2Extractor.h
+        Zero2/Zero2_DirectoryTable.hpp
+        Zero2/Zero2_FileTable.hpp
         )

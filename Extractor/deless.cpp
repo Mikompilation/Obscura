@@ -7,6 +7,12 @@ char *ReadFullFile(const char *filename) {
     std::ifstream infile(filename, std::ios::binary);
     auto length = std::filesystem::file_size(filename);
 
+    if( strstr( filename, "subtitle.obj" ) )
+    {
+      int dbg = 0;
+    }
+   
+
     char *buffer = new char[length];
 
     infile.read(buffer, length);
@@ -131,7 +137,18 @@ void CMP_DecodeOne(CMP_HEADER *header, int no, int64_t from_adrs, int64_t to_adr
 void Decompress(const char *source, const char *target) {
     auto src = ReadFullFile(source);
     auto header = (CMP_HEADER *) src;
-    auto dst = new char[header->size];
+
+    if( strstr( source, "room_end" ) )
+    {
+        int dmy = 0;
+    }
+
+    if( 0 == header->size )
+    {
+        return;
+    }
+
+    auto dst = new char[header->size * 2];
 
     CMP_Decode((CMP_HEADER *) src, dst);
 
