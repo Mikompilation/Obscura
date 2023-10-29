@@ -8,9 +8,15 @@
 void InvalidISOError()
 {
   std::cerr << "Failed to parse ISO file.";
+
   std::cerr << "If this is a valid Zero/Fatal Frame/Project Zero ISO file"
             << std::endl
-            << "Then please contact us on our Discord Server: ";
+            << "Then please either open a report on the github here:"
+            << std::endl
+            << "https ://github.com/wagrenier/Mikompilation" << std::endl
+            << std::endl
+            << "or contact us on our Discord Server: " << std::endl
+            << "https://discord.gg/Ap4Sfcmwd9" << std::endl;
 }
 
 // Just added this for debugging without needing to pass arguments
