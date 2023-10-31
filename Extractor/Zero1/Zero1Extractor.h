@@ -12,15 +12,11 @@ class Zero1Reader : public ZeroReader
     int size;
   };
 
-  unsigned int fileBufferDataSize;
-  std::vector<unsigned char> fileBuffer;
-
  public:
   Zero1Reader(IsoReader *iso, std::filesystem::path output)
       : ZeroReader(iso, output)
   {
-    fileBufferDataSize = 0;
-    fileBuffer.resize(256 * 1024 * 1024);
+    readBuffer.resize(256 * 1024 * 1024);
   }
 
   ~Zero1Reader()

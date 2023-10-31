@@ -4,8 +4,7 @@
 #include "Zero3_FileTable.hpp"
 
 #include "../Constants.h"
-#include "../IsoHandler.h"
-#include "../ZeroFileType.h"
+#include "../Encode/ZeroLess.h"
 
 void Zero3Reader::ExtractFiles()
 {

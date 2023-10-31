@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
   try
   {
     program.parse_args(argc, argv);
-  
+
     isoFile = program.get("iso");
     outputDirectory = program.get("output");
   }
