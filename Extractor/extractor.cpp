@@ -1,69 +1,50 @@
 #include "extractor.h"
-#include "IsoHandler.h"
+#include "IsoHandler.hpp"
 #include <argparse.hpp>
 #include <filesystem>
 
 #include "Zero2/Zero2Extractor.h"
 
-void InvalidISOError()
-{
-  std::cerr << "Failed to parse ISO file." << std::endl;
-
-  std::cerr << "If this is a valid Zero/Fatal Frame/Project Zero ISO file"
-            << std::endl
-            << "Then please either open a report on the github here:"
-            << std::endl
-            << "https ://github.com/wagrenier/Mikompilation" << std::endl
-            << std::endl
-            << "or contact us on our Discord Server: " << std::endl
-            << "https://discord.gg/Ap4Sfcmwd9" << std::endl;
-}
-
-// Just added this for debugging without needing to pass arguments
-constexpr int DEBUG_MODE = 0;
+constexpr char *OBSCURA_VERSION = "0.3";
 
 int main(int argc, char *argv[])
 {
   std::filesystem::path isoFile;
   std::filesystem::path outputDirectory;
 
-  if (DEBUG_MODE)
+  argparse::ArgumentParser program("Mikompilation Extractor", OBSCURA_VERSION);
+
+  program.add_argument("iso")
+      .help("Absolute path with file name to the game's ISO")
+      .required();
+
+  program.add_argument("-o", "--output")
+      .help("Output folder where all files will be extracted")
+      .default_value(std::filesystem::current_path().string());
+
+  program.add_description(
+      "For more information please visit "
+      "https://github.com/wagrenier/Mikompilation");
+
+  try
   {
-    isoFile = "HARDCODE YOUR FILE PATH HERE IF DEBUGGING";
-    outputDirectory = std::filesystem::current_path() / "output";
+    program.parse_args(argc, argv);
+  
+    isoFile = program.get("iso");
+    outputDirectory = program.get("output");
   }
-  else
+  catch (const std::runtime_error &err)
   {
-    argparse::ArgumentParser program("Mikompilation Extractor");
-
-    program.add_argument("iso")
-        .help("Absolute path with file name to the game's ISO")
-        .required();
-
-    program.add_argument("-o", "--output")
-        .help("Output folder where all files will be extracted")
-        .default_value(std::filesystem::current_path().string());
-
-    try
-    {
-      program.parse_args(argc, argv);
-
-      isoFile = program.get("iso");
-      outputDirectory = program.get("output");
-    }
-    catch (const std::runtime_error &err)
-    {
-      std::cerr << err.what() << std::endl;
-      std::exit(1);
-    }
+    std::cerr << program;
+    std::exit(1);
   }
 
   IsoReader isoReader(isoFile.string());
   ZeroReader *zeroReader = nullptr;
 
-  if (false == isoReader.ValidGameRegion())
+  if (!isoReader.ValidGameRegion())
   {
-    InvalidISOError();
+    std::cerr << program;
     return 0;
   }
 

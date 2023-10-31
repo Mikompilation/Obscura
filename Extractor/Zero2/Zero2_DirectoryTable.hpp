@@ -1,9 +1,7 @@
 
 #pragma once
 
-#include <vector>
-
-const char *ZERO_2_DIRECTORY_LIST[ 54 ] = {
+const char *ZERO_2_DIRECTORY_LIST[54] = {
     "bin/data/tim/",
     "bin/data/",
     "bin/data/enemy/",
@@ -59,4 +57,3 @@ const char *ZERO_2_DIRECTORY_LIST[ 54 ] = {
     "bin/data/tim/clear/",
     "bin/data/subtitle/",
 };
-

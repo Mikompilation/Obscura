@@ -21,13 +21,14 @@ class IsoReader
     _fileStream.close();
   }
 
-  int GetPosition()
-  {
-    return _fileStream.tellg();
-  }
   bool Seek(std::streamoff offset)
   {
-    return (!_fileStream.seekg(offset, std::ios::beg)) ? false : true;
+    if (!_fileStream.seekg(offset, std::ios::beg))
+    {
+      return false;
+    }
+
+    return true;
   }
 
   template<typename T>
@@ -40,6 +41,7 @@ class IsoReader
 
     return true;
   }
+
   bool ReadBuffer(char *buffer, unsigned int length)
   {
     if (!_fileStream.read((char *) &buffer[0], length))
@@ -63,7 +65,9 @@ class IsoReader
   bool ValidGameRegion()
   {
     if (_fileStream.fail())
+    {
       return false;
+    }
 
     bool isValid = false;
     std::string GameTitle("", GameTitleIdLength);
@@ -84,5 +88,3 @@ class IsoReader
     return isValid;
   }
 };
-
-void DecompressFile(std::string file);
