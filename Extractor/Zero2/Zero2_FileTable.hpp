@@ -4219,8 +4219,7 @@ const Zero2FileInfo ZERO_2_FILEINFO_USJP[NUM_FILES_US_JP_ZERO2] = {
     {0, 24, 0, 0,                     (char *) "brightness.pk2"},
 };
 
-
-const Zero2FileInfo ZERO_2_FILEINFO_EU[4491] = {
+const Zero2FileInfo ZERO_2_FILEINFO_EU[NUM_FILES_EU_ZERO2] = {
     {0,  1, 0, 0,                       (char *) "comp_tes.pks"},
     {0,  1, 0, 0,                       (char *) "comp_tes.cmp"},
     {1,  0, 0, 0,                           (char *) "logo.pk2"},
