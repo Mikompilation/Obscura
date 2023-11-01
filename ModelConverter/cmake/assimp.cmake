@@ -17,7 +17,7 @@ set(ASSIMP_BUILD_ASSIMP_VIEW OFF CACHE BOOL "Disable assimp view" FORCE)
 FetchContent_Declare(
         assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
-        GIT_TAG 42386b8
+        GIT_TAG v5.3.1
 )
 
 FetchContent_MakeAvailable(assimp)
