@@ -31,6 +31,7 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     m->mNumUVComponents[0] = 2;
     m->mNumFaces = numPoints - 2;
     m->mFaces = new aiFace[numPoints - 2];
+    m->mMethod = aiMorphingMethod_VERTEX_BLEND;
 
     //m->mAABB = aiAABB();
     //m->mAABB.mMin = aiVector3D(boundingBoxMin.x, boundingBoxMin.y, boundingBoxMin.z);
@@ -129,7 +130,7 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
 
     if (result != aiReturn_SUCCESS)
     {
-        programLogger->error("Failed to export the scene: {}", aiGetErrorString());
+        programLogger->error("Failed to export the scene: {}", exporter.GetErrorString());
     }
     else
     {

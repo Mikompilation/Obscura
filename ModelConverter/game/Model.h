@@ -8,6 +8,13 @@
 #include "packfile.h"
 #include <filesystem>
 
+struct MultiBoneMesh
+{
+    int meshIndex;
+    int boneIndex;
+    float weight;
+};
+
 class Model {
 public:
     Model(std::filesystem::path filename);
@@ -28,6 +35,7 @@ private:
     aiScene *scene;
     std::vector<aiMesh*> aiMeshes;
     std::vector<std::vector<unsigned int>> aiMeshesIndex;
+    std::vector<MultiBoneMesh> aiMultiBoneMeshes;
     std::vector<aiNode*> aiNodes;
     std::vector<aiMaterial*> aiMaterials;
     std::vector<aiTexture*> aiTextures;

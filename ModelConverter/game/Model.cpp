@@ -51,7 +51,7 @@ void Model::ExtractModel()
     }
     else
     {
-        exporterOptions |= aiProcess_PopulateArmatureData;
+        exporterOptions |= aiProcess_LimitBoneWeights | aiProcess_Triangulate | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
     }
 
     ExportScene(exportFolder / this->exportFilename, "gltf2", scene, exporterOptions);
@@ -100,13 +100,82 @@ void Model::ConvertToNodeBinaryTree()
                 break;
             }
 
-            if (aiMeshes[m]->mBones != nullptr)
+            if (aiMeshes[m]->HasBones())
             {
                 continue;
             }
 
-            auto coordinateMatrix = this->GetCoordinateMatrix(i);
-            CreateBone(aiMeshes[m], &coordinateMatrix, aiNodes[i]->mName);
+            auto extraBones = 1;
+            auto hasExtraBone = false;
+            auto extraBoneIndex = 0;
+
+            // Checks if it is a multi-bone mesh
+            for (; extraBoneIndex < aiMultiBoneMeshes.size(); extraBoneIndex++)
+            {
+                if(aiMultiBoneMeshes[extraBoneIndex].meshIndex == m)
+                {
+                    extraBones++;
+                    hasExtraBone = true;
+                    break;
+                }
+            }
+
+            aiMeshes[m]->mNumBones = extraBones; //GetNumberOfParents(aiNodes[i]) + extraBones;
+            aiMeshes[m]->mBones = new aiBone*[aiMeshes[m]->mNumBones];
+
+            auto parentIdList = new int[aiMeshes[m]->mNumBones];
+            parentIdList[0] = i;
+
+            // Finds the list of parents ID for the current mesh
+            auto currentNode = aiNodes[i];
+            for (auto l = 1; l < aiMeshes[m]->mNumBones; l++)
+            {
+                if (hasExtraBone && l == aiMeshes[m]->mNumBones - 1)
+                {
+                    parentIdList[l] = aiMultiBoneMeshes[extraBoneIndex].boneIndex;
+                    break;
+                }
+
+                auto parentName = currentNode->mParent->mName;
+                for (auto ll = 0; ll < aiNodes.size(); ll++)
+                {
+                    if (aiNodes[ll]->mName == parentName)
+                    {
+                        currentNode = aiNodes[ll];
+                        parentIdList[l] = ll;
+                        break;
+                    }
+                }
+            }
+
+            for (auto k = 0; k < aiMeshes[m]->mNumBones; k++)
+            {
+                aiMeshes[m]->mBones[k] = new aiBone();
+                aiMeshes[m]->mBones[k]->mName = aiString(aiNodes[parentIdList[k]]->mName);
+
+                auto coordinateMatrix = this->GetCoordinateMatrix(parentIdList[k]);
+                auto inverseBoneMatrix = aiMatrix4x4(*(aiMatrix4x4*)&coordinateMatrix).Inverse().Transpose();
+
+                aiMeshes[m]->mBones[k]->mOffsetMatrix = inverseBoneMatrix;
+                aiMeshes[m]->mBones[k]->mNumWeights = aiMeshes[m]->mNumVertices;
+                aiMeshes[m]->mBones[k]->mWeights = new aiVertexWeight[aiMeshes[m]->mNumVertices];
+
+                for (auto j = 0; j < aiMeshes[m]->mNumVertices; j++)
+                {
+                    aiMeshes[m]->mBones[k]->mWeights[j].mVertexId = j;
+                    aiMeshes[m]->mBones[k]->mWeights[j].mWeight = 0.0f;
+
+                    if (hasExtraBone)
+                    {
+                        aiMeshes[m]->mBones[k]->mWeights[j].mWeight = 1.0f - aiMultiBoneMeshes[extraBoneIndex].weight;
+                    }
+
+                    if (hasExtraBone && k == aiMeshes[m]->mNumBones - 1)
+                    {
+                        aiMeshes[m]->mBones[k]->mWeights[j].mWeight = aiMultiBoneMeshes[extraBoneIndex].weight;
+                    }
+                }
+            }
         }
     }
 }
@@ -542,7 +611,6 @@ void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
 void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex, Vector3 &normal, aiMesh* mesh) {
     auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
     const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
-    const auto coord = this->GetCurrentCoordinate();
     const auto pWeightedVertex3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
     const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
 
@@ -566,6 +634,7 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
     if (currentPoint == 0)
     {
         aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+        aiMultiBoneMeshes.push_back({(int)aiMeshes.size(), wVertex.ucBoneId1, wVertex.vVertex.w});
     }
 }
 
