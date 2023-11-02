@@ -1,7 +1,9 @@
 
 #pragma once
 
-const char *ZERO_2_DIRECTORY_LIST[54] = {
+namespace Zero2
+{
+const std::filesystem::path FILE_DIRECTORY_LIST[54] = {
     "bin/data/tim/",
     "bin/data/",
     "bin/data/enemy/",
@@ -57,3 +59,4 @@ const char *ZERO_2_DIRECTORY_LIST[54] = {
     "bin/data/tim/clear/",
     "bin/data/subtitle/",
 };
+}

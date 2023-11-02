@@ -1,17 +1,9 @@
 #include "extractor.h"
-#include "IsoHandler.hpp"
-#include <argparse.hpp>
-#include <filesystem>
-
-#include "Zero2/Zero2Extractor.h"
 
 constexpr char *OBSCURA_VERSION = "0.3";
 
 int main(int argc, char *argv[])
 {
-  std::filesystem::path isoFile;
-  std::filesystem::path outputDirectory;
-
   argparse::ArgumentParser program("Mikompilation Extractor", OBSCURA_VERSION);
 
   program.add_argument("iso")
@@ -29,50 +21,45 @@ int main(int argc, char *argv[])
   try
   {
     program.parse_args(argc, argv);
-
-    isoFile = program.get("iso");
-    outputDirectory = program.get("output");
+    ExtractGameFiles(program.get("iso"), program.get("output"));
   }
   catch (const std::runtime_error &err)
   {
     std::cerr << program;
+    std::cerr << err.what();
     std::exit(1);
   }
 
-  IsoReader isoReader(isoFile.string());
-  ZeroReader *zeroReader = nullptr;
-
-  if (!isoReader.ValidGameRegion())
-  {
-    std::cerr << program;
-    return 0;
-  }
-
-  switch (isoReader.GetGameType())
-  {
-    case GAME_ZERO_1:
-    {
-    }
-    break;
-
-    case GAME_ZERO_2:
-    {
-      zeroReader = new Zero2Reader(&isoReader, outputDirectory);
-      zeroReader->ExtractFiles();
-    }
-    break;
-
-    case GAME_ZERO_3:
-    {
-    }
-    break;
-  }
-
-  if (zeroReader)
-  {
-    delete zeroReader;
-    zeroReader = nullptr;
-  }
-
   return 0;
+}
+
+void ExtractGameFiles(std::filesystem::path input_iso_path,
+                      std::filesystem::path output_directory)
+{
+  IsoReader iso_reader(input_iso_path.string());
+
+  std::unique_ptr<ZeroReader> zero_reader;
+
+  if (!iso_reader.ValidGameRegion())
+  {
+    throw std::runtime_error("Invalid Game Region or ISO.");
+  }
+
+  switch (iso_reader.GetGameTitle())
+  {
+    case GAME_TITLE_ZERO_2:
+    {
+      zero_reader =
+          std::make_unique<Zero2::FileExtractor>(&iso_reader, output_directory);
+    }
+    break;
+
+    default:
+    {
+      throw std::runtime_error("Currently not supported!");
+    }
+    break;
+  }
+
+  zero_reader->ExtractFiles();
 }

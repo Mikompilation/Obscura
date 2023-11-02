@@ -1,100 +1,151 @@
 
 #include "Zero2Extractor.h"
-#include "Zero2_DirectoryTable.hpp"
-#include "Zero2_FileTable.hpp"
+#include "../Zero3/Zero3_DirectoryTable.hpp"
 
-#include "../Constants.h"
-#include "../Encode/ZeroLess.h"
+using namespace Zero2;
 
-void Zero2Reader::ExtractFiles()
+FileExtractor::FileExtractor(IsoReader *iso_reader,
+                             std::filesystem::path output_directory,
+                             bool verbose_log)
+    : ZeroReader(iso_reader, output_directory, verbose_log)
 {
-  FileEntry *fileInfoTable = new FileEntry[GameLookupData.NumFiles];
+  // If the version is unsupported then we throw std::out_of_range
+  // and we fail with the default help message.
+  ptr_address_table = &GAME_ADDRESS_TABLE.at(iso_reader->GetGameVersion());
 
-  // Seek to the file table and read it all
-  iso->Seek(GameLookupData.FileTableStartAddress);
-  iso->ReadBuffer((char *) &fileInfoTable[0],
-                  sizeof(FileEntry) * GameLookupData.NumFiles);
+  // Read CD Dat Table
+  ptr_cd_dat = new _CD_DAT_TBL[ptr_address_table->file_count];
 
-  // Iterate over the file table
-  for (int fileId = 0; fileId < GameLookupData.NumFiles; fileId++)
+  iso_reader->Seek(ptr_address_table->address_cd_dat_table);
+  iso_reader->ReadBuffer((char *) &ptr_cd_dat[0],
+                         sizeof(_CD_DAT_TBL) * ptr_address_table->file_count);
+}
+
+FileExtractor ::~FileExtractor()
+{
+  if (ptr_cd_dat)
   {
-    FileEntry *fileInfo = &fileInfoTable[fileId];
+    delete[] ptr_cd_dat;
+  }
+}
 
-    if (0 == fileInfo->isExist)
+void FileExtractor::ExtractFiles()
+{
+  uint32_t calc_file_addr = 0;
+
+  for (int file_no = 0; file_no < ptr_address_table->file_count; file_no++)
+  {
+    if (!GetFileIsExist(file_no))
     {
       continue;
     }
 
-    // Calculate the file address in the ISO
-    unsigned int fileAddress = GameLookupData.FileArchiveStartAddress
-                               + (fileInfo->start_sector * PS2_SECTOR_SIZE);
+    calc_file_addr = ptr_address_table->address_file_data
+                     + (GetFileStartSector(file_no) * PS2_SECTOR_SIZE);
 
-    if (fileInfo->isCompressed)
+    if (GetFileIsCmp(file_no))
     {
-      ExtractCompressedFile(fileId, fileAddress, fileInfo->sizeCompressed);
+      ExtractCompressedFile(file_no, calc_file_addr,
+                            ptr_cd_dat[file_no].cmp_size);
     }
     else
     {
-      ExtractRawFile(fileId, fileAddress, fileInfo->size);
+      ExtractRawFile(file_no, calc_file_addr, ptr_cd_dat[file_no].size);
     }
   }
-
-  delete[] fileInfoTable;
 }
 
-bool Zero2Reader::ExtractRawFile(int fileId, unsigned int fileAddress,
-                                 unsigned int chunkSize)
+bool FileExtractor::ExtractRawFile(int file_id, unsigned int file_address,
+                                   unsigned int size)
 {
-  std::filesystem::path filePath = GetFilePath(fileId);
+  std::filesystem::path file_path = GetFilePath(file_id);
 
-  printf("Extract File [Addr 0x%08X] ... %ls\n", fileAddress, filePath.c_str());
+  printf("Extract File [Addr 0x%08X] ... %ls\n", file_address,
+         file_path.c_str());
 
-  // Seek to the file sector and read its contents
-  iso->Seek(fileAddress);
-  iso->ReadBuffer((char *) readBuffer.data(), chunkSize);
+  _read_buffer.resize(size);
 
-  if (!SaveFileToDisk(readBuffer.data(), chunkSize, OutputDirectory / filePath))
-  {
-    return false;
-  }
+  _iso_reader->Seek(file_address);
+  _iso_reader->ReadBuffer((char *) _read_buffer.data(), size);
 
-  return true;
+  return SaveFileToDisk(_read_buffer.data(), size,
+                        _output_directory / file_path);
 }
 
-bool Zero2Reader::ExtractCompressedFile(int fileId, unsigned int fileAddress,
-                                        unsigned int chunkSize)
+bool FileExtractor::ExtractCompressedFile(int file_id,
+                                          unsigned int file_address,
+                                          unsigned int size)
 {
-  std::filesystem::path filePath = GetFilePath(fileId);
+  std::filesystem::path file_name = GetFilePath(file_id);
 
-  printf("Decode File [Addr 0x%08X] ... %ls\n", fileAddress, filePath.c_str());
+  printf("Decode File [Addr 0x%08X] ... %ls\n", file_address,
+         file_name.c_str());
 
   std::vector<unsigned char> decoded_buffer;
-  bool success = true;
 
-  // Seek to the file sector and read its contents
-  iso->Seek(fileAddress);
-  iso->ReadBuffer((char *) readBuffer.data(), chunkSize);
+  _read_buffer.resize(size);
 
-  if (!ZeroLess::DecompressBuffer(readBuffer, decoded_buffer))
+  _iso_reader->Seek(file_address);
+  _iso_reader->ReadBuffer((char *) _read_buffer.data(), size);
+
+  if (!ZeroLess::DecompressBuffer(_read_buffer, decoded_buffer))
   {
     return false;
   }
 
-  if (!SaveFileToDisk(decoded_buffer.data(), decoded_buffer.size(),
-                      OutputDirectory / filePath))
-  {
-    return false;
-  }
-
-  return true;
+  return SaveFileToDisk(decoded_buffer.data(), decoded_buffer.size(),
+                        _output_directory / file_name);
 }
 
-std::filesystem::path Zero2Reader::GetFilePath(int fileId)
+const std::filesystem::path FileExtractor::GetFilePath(uint32_t file_no)
 {
-  auto fileInfo = GameLookupData.Region == REGION_PAL
-                      ? ZERO_2_FILEINFO_EU[fileId]
-                      : ZERO_2_FILEINFO_USJP[fileId];
+  const FileNameDat *file_dat = nullptr;
 
-  return std::filesystem::path(ZERO_2_DIRECTORY_LIST[fileInfo.directory])
-         / fileInfo.name;
+  if (_game_lookup_data.game_version == GAME_VERSION_NTSCJ
+      || _game_lookup_data.game_version == GAME_VERSION_NTSCU)
+  {
+    file_dat = &FILENAME_DATA_NTSC[file_no];
+  }
+  else
+  {
+    file_dat = &FILENAME_DATA_PAL[file_no];
+  }
+
+  return FILE_DIRECTORY_LIST[file_dat->path_no] / file_dat->file_name;
+}
+
+bool FileExtractor::GetFileIsCmp(uint32_t file_no)
+{
+  if (_game_lookup_data.game_version == GAME_VERSION_PROTO)
+  {
+    return ptr_cd_dat[file_no].cmp_size != ptr_cd_dat[file_no].size;
+  }
+  else
+  {
+    return ptr_cd_dat[file_no].start_sector & 1;
+  }
+}
+
+bool FileExtractor::GetFileIsExist(uint32_t file_no)
+{
+  if (_game_lookup_data.game_version == GAME_VERSION_PROTO)
+  {
+    return (ptr_cd_dat[file_no].size != 0 || ptr_cd_dat[file_no].cmp_size != 0);
+  }
+  else
+  {
+    return (ptr_cd_dat[file_no].start_sector >> 1 & 1);
+  }
+}
+
+uint32_t FileExtractor::GetFileStartSector(uint32_t file_no)
+{
+  if (_game_lookup_data.game_version == GAME_VERSION_PROTO)
+  {
+    return ptr_cd_dat[file_no].start_sector;
+  }
+  else
+  {
+    return ptr_cd_dat[file_no].start_sector >> 2;
+  }
 }

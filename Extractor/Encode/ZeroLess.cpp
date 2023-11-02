@@ -1,5 +1,38 @@
 #include "ZeroLess.h"
 #include "../Utility.h"
+#include <fstream>
+
+bool ZeroLess::DecompressFromFile(std::string filename,
+                                  std::vector<unsigned char> &decoded_buffer)
+{
+  std::ifstream infile(filename, std::ios::binary);
+
+  infile.seekg(0, std::ios::end);
+  int fileSize = infile.tellg();
+  infile.seekg(0, std::ios::beg);
+
+  std::vector<unsigned char> file_buffer(fileSize);
+
+  infile.read((char *) file_buffer.data(), fileSize);
+
+  infile.close();
+
+  const CMP_HEADER *header = (CMP_HEADER *) &file_buffer[0];
+  unsigned int decoded_size = 0;
+
+  if (header->ext != LESS_IDENTITY || header->div_num <= 0)
+  {
+    return false;
+  }
+
+  decoded_buffer.resize(header->div_num * header->div_size);
+  decoded_size = CMP_Decode(file_buffer.data(), decoded_buffer.data());
+
+  // Trim the buffer so that .size() is reliable to us.
+  decoded_buffer.resize(decoded_size);
+
+  return (decoded_size == header->size);
+}
 
 bool ZeroLess::DecompressBuffer(
     const std::vector<unsigned char> &encoded_buffer,
@@ -32,7 +65,6 @@ int ZeroLess::CMP_Decode(const unsigned char *encoded_buffer,
   int div_index = 0;
   int offset = 0;
   int no = 0;
-  int readoffs = 0;
 
   if (0 == header->div_num)
   {
@@ -69,88 +101,70 @@ void ZeroLess::CMP_DecodeOne(const ENCODE_DIV_SECTION *section,
   }
 }
 
-void ZeroLess::SlideDecode(const unsigned char *encoded_buffer,
-                           unsigned char *decoded_buffer, int size)
+void ZeroLess::SlideDecode(const unsigned char *in_buffer,
+                           unsigned char *out_buffer, size_t size)
 {
-  unsigned char rhs = 0;
-  unsigned char lhs = 0;
-  unsigned int c = 0;
-  unsigned int val = 0;
+  int32_t c = 0;
+  int32_t rhs = 0;
+  int32_t lhs = 0;
+  int32_t flags = 0;
+  uint32_t r = BUFFER_SIZE - MATCH_LENGTH;
 
-  unsigned int position = SLIDE_START;
-  std::vector<unsigned char> buffer(SLIDE_BUFFER_SIZE);
+  std::vector<unsigned char> buffer(BUFFER_SIZE + MATCH_LENGTH - 1);
+  remaining_size = size;
 
   while (true)
   {
-    while (true)
+    if (((flags >>= 1) & 0x0100) == 0)
     {
-      val = c >> 1;
-
-      if ((val & 0x100) == 0)
-      {
-        lhs = *encoded_buffer++;
-
-        if (size == 0)
-        {
-          return;
-        }
-
-        val = lhs | 0xffffff00;
-        size--;
-      }
-
-      c = val & 0xffff;
-
-      if ((val & 0x1) == 0)
-      {
-        break;
-      }
-
-      lhs = *encoded_buffer++;
-
-      if (size == 0)
+      if ((lhs = _GetByte(in_buffer)) == END_OF_STREAM)
       {
         return;
       }
 
-      buffer[position] = lhs;
-      *decoded_buffer++ = lhs;
-
-      size--;
-      position = (++position & SLIDE_MASK);
+      flags = lhs | 0xff00;
     }
 
-    lhs = *encoded_buffer;
+    flags = flags & 0xffff;
 
-    if (size == 0)
+    if ((flags & 0x1) == 0)
     {
-      break;
+      if ((lhs = _GetByte(in_buffer)) == END_OF_STREAM)
+      {
+        return;
+      }
+
+      if ((rhs = _GetByte(in_buffer)) == END_OF_STREAM)
+      {
+        return;
+      }
+
+      // Decode data into buffer
+      // Maximum length is rhs low nibble + 2
+      lhs |= ((rhs & 0xF0) << 4);
+      rhs = (rhs & 0x0F) + THRESHOLD;
+
+      for (int i = 0; i <= rhs; i++)
+      {
+        c = buffer[(lhs + i) & (BUFFER_SIZE - 1)];
+
+        _PutByte(c, out_buffer);
+        buffer[r] = c;
+
+        r = (++r & (BUFFER_SIZE - 1));
+      }
     }
-
-    rhs = encoded_buffer[1];
-
-    // Advance the encoded buffer position by 2
-    // now that we have our lhs and rhs set.
-    encoded_buffer = encoded_buffer + 2;
-
-    if (size == 1)
+    else
     {
-      return;
-    }
+      if ((lhs = _GetByte(in_buffer)) == END_OF_STREAM)
+      {
+        return;
+      }
 
-    size -= 2;
+      buffer[r] = lhs;
+      _PutByte(lhs, out_buffer);
 
-    // Decode data into buffer
-    // Maximum length is rhs low nibble + 2
-    for (int i = 0; i <= Utility::GetLowNibble(rhs) + 2; i++)
-    {
-      val = (lhs | (rhs & 0xF0) << 4) + i;
-
-      buffer[position] = buffer[val & SLIDE_MASK];
-      position = (++position & SLIDE_MASK);
-
-      // Store decoded data in the output buffer and advance by 1.
-      *decoded_buffer++ = buffer[val & SLIDE_MASK];
+      r = (++r & (BUFFER_SIZE - 1));
     }
   }
 }
