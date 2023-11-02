@@ -1,32 +1,22 @@
 
 #pragma once
 
+#include "../Constants.h"
+#include "../Encode/ZeroLess.h"
 #include "../ZeroReader.h"
 
-class Zero3Reader : public ZeroReader
+#include "Zero3_DirectoryTable.hpp"
+#include "Zero3_FileTable.hpp"
+
+namespace Zero3
 {
- private:
-  struct FileEntry
-  {
-    unsigned int isCompressed : 1;
-    unsigned int isExist : 1;
-    unsigned int start_sector : 30;
-    int size;
-    int sizeCompressed;
-  };
-
+class FileExtractor : public ZeroReader
+{
  public:
-  Zero3Reader(IsoReader *iso, std::filesystem::path output)
-      : ZeroReader(iso, output)
-  {
-  }
-
-  ~Zero3Reader()
-  {
-  }
+  FileExtractor(IsoReader *iso_reader, std::filesystem::path output_directory,
+                bool verbose_log = false);
+  ~FileExtractor();
 
   void ExtractFiles() override;
-
- private:
-  std::string GetFileNameWithPath(int fileId);
 };
+}// namespace Zero3

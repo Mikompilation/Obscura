@@ -1,6 +1,8 @@
+
 #pragma once
 
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace ZeroLess
@@ -8,11 +10,14 @@ namespace ZeroLess
 constexpr int LESS_IDENTITY =
     ('L' << 0) | ('E' << 8) | ('S' << 16) | ('S' << 24);
 
-constexpr int SLIDE_BUFFER_SIZE = 0x1000;
-constexpr int SLIDE_MASK = 0x0FFF;
-constexpr int SLIDE_START = 0x0FEE;
+constexpr int BUFFER_SIZE = 4096;
+constexpr int MATCH_LENGTH = 18;
+constexpr int THRESHOLD = 2;
+constexpr int END_OF_STREAM = -1;
 
-enum ENCODE_TYPE : short
+static size_t remaining_size = 0;
+
+enum ENCODE_TYPE : int16_t
 {
   ENCODE_TYPE_NONE = 0,
   ENCODE_TYPE_SLIDE = 1,
@@ -22,20 +27,49 @@ enum ENCODE_TYPE : short
 struct ENCODE_DIV_SECTION
 {
   ENCODE_TYPE type;
-  unsigned short size;
+  uint16_t size;
 };
 
 struct CMP_HEADER
 {
-  int size;
-  int ext;
-  int div_size;
-  int div_num;
-  int data_offset;
-  int div_p;
-  int mapping;
-  int compressed_size;
+  int32_t size;
+  int32_t ext;
+  int32_t div_size;
+  int32_t div_num;
+  int32_t data_offset;
+  int32_t div_p;
+  int32_t mapping;
+  int32_t compressed_size;
 };
+
+static inline int32_t _GetByte(const unsigned char *&src)
+{
+  int32_t c = *src++;
+
+  if (remaining_size == 0)
+  {
+    return END_OF_STREAM;
+  }
+
+  remaining_size--;
+  return c;
+}
+
+static inline void _PutByte(unsigned char b, unsigned char *&dst)
+{
+  *dst++ = b;
+}
+
+/*
+* Decompress and decode 'LESS' files for Zero 2 and Zero 3.
+* 
+* @in_encoded_buffer    The encoded buffer to be processed.
+* @out_decoded_buffer   Where decoded data will be placed.
+* 
+* @return TRUE if decoded size matches header size, else FALSE
+*/
+bool DecompressFromFile(std::string filename,
+                        std::vector<unsigned char> &decoded_buffer);
 
 /*
 * Decompress and decode 'LESS' files for Zero 2 and Zero 3.
@@ -70,6 +104,13 @@ void CMP_DecodeOne(const ENCODE_DIV_SECTION *section,
                    const unsigned char *encoded_buffer,
                    unsigned char *decoded_buffer);
 
-void SlideDecode(const unsigned char *encoded_buffer,
-                 unsigned char *decoded_buffer, int size);
+/*
+* LZSS decompression algorithm by Haruhiko Okumura, 4/ 6/1989
+* 
+* @in_buffer            pointer to beginning of encoded buffer.
+* @out_buffer           pointer to buffer where decoded data will be placed.
+* @size                 length of input data
+*/
+void SlideDecode(const unsigned char *in_buffer, unsigned char *out_buffer,
+                 size_t size);
 }// namespace ZeroLess

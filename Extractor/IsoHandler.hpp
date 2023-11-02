@@ -7,23 +7,23 @@
 class IsoReader
 {
  private:
-  std::ifstream _fileStream;
-  ZeroGameLookupData _LookupData;
+  std::ifstream _file_stream;
+  ZeroGameLookupData _lookup_data;
 
  public:
   IsoReader(std::string isoFileName)
   {
-    _fileStream = std::ifstream(isoFileName, std::ios::binary);
+    _file_stream = std::ifstream(isoFileName, std::ios::binary);
   }
 
   ~IsoReader()
   {
-    _fileStream.close();
+    _file_stream.close();
   }
 
   bool Seek(std::streamoff offset)
   {
-    if (!_fileStream.seekg(offset, std::ios::beg))
+    if (!_file_stream.seekg(offset, std::ios::beg))
     {
       return false;
     }
@@ -34,7 +34,7 @@ class IsoReader
   template<typename T>
   bool Read(T *entry)
   {
-    if (!_fileStream.read((char *) (entry), sizeof(T)))
+    if (!_file_stream.read((char *) (entry), sizeof(T)))
     {
       return false;
     }
@@ -44,7 +44,7 @@ class IsoReader
 
   bool ReadBuffer(char *buffer, unsigned int length)
   {
-    if (!_fileStream.read((char *) &buffer[0], length))
+    if (!_file_stream.read((char *) &buffer[0], length))
     {
       return false;
     }
@@ -54,37 +54,42 @@ class IsoReader
 
   ZeroGameLookupData GetLookupData()
   {
-    return _LookupData;
+    return _lookup_data;
   }
 
-  enumGameType GetGameType()
+  ENUM_GAME_TITLE GetGameTitle()
   {
-    return _LookupData.GameType;
+    return _lookup_data.game_title;
+  }
+
+  ENUM_GAME_VERSION GetGameVersion()
+  {
+    return _lookup_data.game_version;
   }
 
   bool ValidGameRegion()
   {
-    if (_fileStream.fail())
+    if (_file_stream.fail())
     {
       return false;
     }
 
-    bool isValid = false;
-    std::string GameTitle("", GameTitleIdLength);
+    bool is_valid_iso = false;
+    std::string game_title("", GameTitleIdLength);
 
-    for (auto GameLookup : GAME_LOOKUP_DATA)
+    for (auto game_version : GAME_VERSION_TABLE)
     {
-      _fileStream.seekg(GameLookup.GameTitleOffset, std::ios::beg);
-      _fileStream.read(&GameTitle[0], GameTitleIdLength);
+      _file_stream.seekg(game_version.game_title_offset, std::ios::beg);
+      _file_stream.read(&game_title[0], GameTitleIdLength);
 
-      if (0 == GameLookup.GameTitle.compare(GameTitle))
+      if (0 == game_version.game_serial.compare(game_title))
       {
-        _LookupData = GameLookup;
-        isValid = true;
+        _lookup_data = game_version;
+        is_valid_iso = true;
         break;
       }
     }
 
-    return isValid;
+    return is_valid_iso;
   }
 };

@@ -1,30 +1,25 @@
 
 #pragma once
 
+#include "../Constants.h"
 #include "../ZeroReader.h"
 
-class Zero1Reader : public ZeroReader
+namespace Zero1
 {
- private:
-  struct FileEntry
-  {
-    int address;
-    int size;
-  };
+struct AddressTable
+{
+  int32_t address;
+  int32_t size;
+};
 
+class FileExtractor : public ZeroReader
+{
  public:
-  Zero1Reader(IsoReader *iso, std::filesystem::path output)
-      : ZeroReader(iso, output)
-  {
-    readBuffer.resize(256 * 1024 * 1024);
-  }
+  FileExtractor(IsoReader *iso_reader, std::filesystem::path output_directory,
+                bool verbose_log = false);
 
-  ~Zero1Reader()
-  {
-  }
+  ~FileExtractor();
 
   void ExtractFiles() override;
-
- private:
-  std::string GetFileNameWithPath(int fileId);
 };
+}// namespace Zero1

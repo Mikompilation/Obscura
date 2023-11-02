@@ -4,20 +4,27 @@
 #include "IsoHandler.hpp"
 #include <filesystem>
 
+#include <map>
+#include <vector>
+
 class ZeroReader
 {
  protected:
-  IsoReader *iso;
-  ZeroGameLookupData GameLookupData;
-  std::filesystem::path OutputDirectory;
+  IsoReader *_iso_reader;
+  ZeroGameLookupData _game_lookup_data;
+  std::filesystem::path _output_directory;
 
-  std::vector<unsigned char> readBuffer;
+  bool _verbose_output;
 
-  ZeroReader(IsoReader *iso, std::filesystem::path output)
+  std::vector<unsigned char> _read_buffer;
+
+  ZeroReader(IsoReader *iso_reader, std::filesystem::path output_directory,
+             bool verbose)
   {
-    this->iso = iso;
-    this->OutputDirectory = output;
-    this->GameLookupData = iso->GetLookupData();
+    _iso_reader = iso_reader;
+    _output_directory = output_directory;
+    _game_lookup_data = iso_reader->GetLookupData();
+    _verbose_output = verbose;
   }
 
  public:

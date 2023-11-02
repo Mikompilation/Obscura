@@ -8,10 +8,9 @@
 
 void Zero3Reader::ExtractFiles()
 {
-
 }
 
-std::string Zero3Reader::GetFileNameWithPath(int fileId)
+std::string Zero3Reader::GetFileNameWithPath(uint32_t file_no)
 {
   return "";
 }
