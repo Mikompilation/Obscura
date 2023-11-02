@@ -14,6 +14,8 @@ class IsoReader
   IsoReader(std::string isoFileName)
   {
     _file_stream = std::ifstream(isoFileName, std::ios::binary);
+    _file_stream.exceptions(std::ios_base::failbit | std::ios_base::badbit
+                            | std::ios_base::eofbit);
   }
 
   ~IsoReader()
@@ -23,33 +25,18 @@ class IsoReader
 
   bool Seek(std::streamoff offset)
   {
-    if (!_file_stream.seekg(offset, std::ios::beg))
-    {
-      return false;
-    }
-
-    return true;
+    return (bool) _file_stream.seekg(offset, std::ios::beg);
   }
 
   template<typename T>
   bool Read(T *entry)
   {
-    if (!_file_stream.read((char *) (entry), sizeof(T)))
-    {
-      return false;
-    }
-
-    return true;
+    return (bool) _file_stream.read((char *) (entry), sizeof(T));
   }
 
   bool ReadBuffer(char *buffer, unsigned int length)
   {
-    if (!_file_stream.read((char *) &buffer[0], length))
-    {
-      return false;
-    }
-
-    return true;
+    return (bool) _file_stream.read((char *) &buffer[0], length);
   }
 
   ZeroGameLookupData GetLookupData()
@@ -82,7 +69,7 @@ class IsoReader
       _file_stream.seekg(game_version.game_title_offset, std::ios::beg);
       _file_stream.read(&game_title[0], GameTitleIdLength);
 
-      if (0 == game_version.game_serial.compare(game_title))
+      if (game_version.game_serial.compare(game_title) == 0)
       {
         _lookup_data = game_version;
         is_valid_iso = true;

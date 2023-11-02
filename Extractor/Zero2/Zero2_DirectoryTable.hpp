@@ -1,4 +1,3 @@
-
 #pragma once
 
 namespace Zero2
@@ -57,6 +56,5 @@ const std::filesystem::path FILE_DIRECTORY_LIST[54] = {
     "bin/data/tim/gallery/",
     "bin/data/tim/lang_sl/",
     "bin/data/tim/clear/",
-    "bin/data/subtitle/",
-};
+    "bin/data/subtitle/"};
 }

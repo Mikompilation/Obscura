@@ -1,10 +1,8 @@
-
 #pragma once
 
-#include <vector>
-#include <string>
-
-const std::vector<std::string> ZERO_3_DIRECTORY_LIST = {
+namespace Zero3
+{
+const std::filesystem::path FILE_DIRECTORY_LIST[50] = {
     "bin/data/",
     "bin/data/tim2/",
     "bin/data/tim2/hint/",
@@ -54,6 +52,5 @@ const std::vector<std::string> ZERO_3_DIRECTORY_LIST = {
     "bin/data/3ddata/camera/",
     "bin/data/icon/",
     "bin/data/subtitle/",
-    "bin/data/2ddata/tutorial/"
-};
-
+    "bin/data/2ddata/tutorial/"};
+}

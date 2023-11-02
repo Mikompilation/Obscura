@@ -58,7 +58,7 @@ void FileExtractor::ExtractFiles()
 bool FileExtractor::ExtractRawFile(int file_id, unsigned int file_address,
                                    unsigned int size)
 {
-  std::filesystem::path file_path = GetFilePath(file_id);
+  auto file_path = GetFilePath(file_id);
 
   printf("Extract File [Addr 0x%08X] ... %ls\n", file_address,
          file_path.c_str());
@@ -76,7 +76,7 @@ bool FileExtractor::ExtractCompressedFile(int file_id,
                                           unsigned int file_address,
                                           unsigned int size)
 {
-  std::filesystem::path file_name = GetFilePath(file_id);
+  auto file_name = GetFilePath(file_id);
 
   printf("Decode File [Addr 0x%08X] ... %ls\n", file_address,
          file_name.c_str());
