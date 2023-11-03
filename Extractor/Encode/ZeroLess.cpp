@@ -63,7 +63,7 @@ int32_t ZeroLess::CMP_Decode(const unsigned char *encoded_buffer,
   int offset = 0;
   int no = 0;
 
-  if (0 == header->div_num)
+  if (header->div_num == 0)
   {
     return header->size;
   }
