@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Regions.h"
-#include <filesystem>
 #include <fstream>
 
 class IsoReader
@@ -76,7 +75,6 @@ class IsoReader
         break;
       }
     }
-
     return is_valid_iso;
   }
 };
