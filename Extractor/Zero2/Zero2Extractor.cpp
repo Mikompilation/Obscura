@@ -1,4 +1,3 @@
-
 #include "Zero2Extractor.h"
 #include "../Zero3/Zero3_DirectoryTable.hpp"
 
@@ -11,10 +10,11 @@ FileExtractor::FileExtractor(IsoReader *iso_reader,
 {
   // If the version is unsupported then we throw std::out_of_range
   // and we fail with the default help message.
-  ptr_address_table = &GAME_ADDRESS_TABLE.at(iso_reader->GetGameVersion());
+  ptr_address_table = std::make_unique<AddressTable>(
+      GAME_ADDRESS_TABLE.at(iso_reader->GetGameVersion()));
 
   // Read CD Dat Table
-  ptr_cd_dat = new _CD_DAT_TBL[ptr_address_table->file_count];
+  ptr_cd_dat = std::make_unique<_CD_DAT_TBL[]>(ptr_address_table->file_count);
 
   iso_reader->Seek(ptr_address_table->address_cd_dat_table);
   iso_reader->ReadBuffer((char *) &ptr_cd_dat[0],
@@ -23,10 +23,6 @@ FileExtractor::FileExtractor(IsoReader *iso_reader,
 
 FileExtractor ::~FileExtractor()
 {
-  if (ptr_cd_dat)
-  {
-    delete[] ptr_cd_dat;
-  }
 }
 
 void FileExtractor::ExtractFiles()
@@ -60,7 +56,7 @@ bool FileExtractor::ExtractRawFile(int file_id, unsigned int file_address,
 {
   auto file_path = GetFilePath(file_id);
 
-  printf("Extract File [Addr 0x%08X] ... %ls\n", file_address,
+  printf("Extract File [Addr 0x%08X][ Sz: %08X ] ... %ls\n", file_address, size,
          file_path.c_str());
 
   _read_buffer.resize(size);
@@ -76,11 +72,7 @@ bool FileExtractor::ExtractCompressedFile(int file_id,
                                           unsigned int file_address,
                                           unsigned int size)
 {
-  auto file_name = GetFilePath(file_id);
-
-  printf("Decode File [Addr 0x%08X] ... %ls\n", file_address,
-         file_name.c_str());
-
+  auto file_path = GetFilePath(file_id);
   std::vector<unsigned char> decoded_buffer;
 
   _read_buffer.resize(size);
@@ -88,13 +80,16 @@ bool FileExtractor::ExtractCompressedFile(int file_id,
   _iso_reader->Seek(file_address);
   _iso_reader->ReadBuffer((char *) _read_buffer.data(), size);
 
+  printf("Decode File [Addr 0x%08X][ Sz: %08X ] ... %ls\n", file_address, size,
+         file_path.c_str());
+
   if (!ZeroLess::DecompressBuffer(_read_buffer, decoded_buffer))
   {
     return false;
   }
 
   return SaveFileToDisk(decoded_buffer.data(), decoded_buffer.size(),
-                        _output_directory / file_name);
+                        _output_directory / file_path);
 }
 
 const std::filesystem::path FileExtractor::GetFilePath(uint32_t file_no)

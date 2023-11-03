@@ -1,7 +1,7 @@
-
 #pragma once
 
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -44,19 +44,18 @@ struct CMP_HEADER
 
 static inline int32_t _GetByte(const unsigned char *&src)
 {
-  int32_t c = *src++;
-
   if (remaining_size == 0)
   {
     return END_OF_STREAM;
   }
 
   remaining_size--;
-  return c;
+  return *src++;
 }
 
 static inline void _PutByte(unsigned char b, unsigned char *&dst)
 {
+  // TODO: Maybe add an end of stream check in here...
   *dst++ = b;
 }
 
@@ -90,8 +89,8 @@ bool DecompressBuffer(const std::vector<unsigned char> &encoded_buffer,
 * 
 * @return size of decompressed file.
 */
-int CMP_Decode(const unsigned char *encoded_buffer,
-               unsigned char *decoded_buffer);
+int32_t CMP_Decode(const unsigned char *encoded_buffer,
+                   unsigned char *decoded_buffer);
 
 /*
 * Decodes a section of a 'LESS' file and places in to decoded_buffer.

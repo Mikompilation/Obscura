@@ -1,6 +1,5 @@
 #include "ZeroLess.h"
 #include "../Utility.h"
-#include <fstream>
 
 bool ZeroLess::DecompressFromFile(std::string filename,
                                   std::vector<unsigned char> &decoded_buffer)
@@ -14,11 +13,10 @@ bool ZeroLess::DecompressFromFile(std::string filename,
   std::vector<unsigned char> file_buffer(fileSize);
 
   infile.read((char *) file_buffer.data(), fileSize);
-
   infile.close();
 
-  const CMP_HEADER *header = (CMP_HEADER *) &file_buffer[0];
-  unsigned int decoded_size = 0;
+  const auto header = (CMP_HEADER *) &file_buffer[0];
+  size_t decoded_size = 0;
 
   if (header->ext != LESS_IDENTITY || header->div_num <= 0)
   {
@@ -38,8 +36,8 @@ bool ZeroLess::DecompressBuffer(
     const std::vector<unsigned char> &encoded_buffer,
     std::vector<unsigned char> &decoded_buffer)
 {
-  const CMP_HEADER *header = (CMP_HEADER *) &encoded_buffer[0];
-  unsigned int decoded_size = 0;
+  const auto header = (CMP_HEADER *) &encoded_buffer[0];
+  size_t decoded_size = 0;
 
   if (header->ext != LESS_IDENTITY || header->div_num <= 0)
   {
@@ -55,14 +53,13 @@ bool ZeroLess::DecompressBuffer(
   return (decoded_size == header->size);
 }
 
-int ZeroLess::CMP_Decode(const unsigned char *encoded_buffer,
-                         unsigned char *decoded_buffer)
+int32_t ZeroLess::CMP_Decode(const unsigned char *encoded_buffer,
+                             unsigned char *decoded_buffer)
 {
-  const CMP_HEADER *header = (CMP_HEADER *) &encoded_buffer[0];
-  const ENCODE_DIV_SECTION *div_section =
+  const auto header = (CMP_HEADER *) &encoded_buffer[0];
+  const auto div_section =
       (ENCODE_DIV_SECTION *) (&encoded_buffer[header->div_p]);
 
-  int div_index = 0;
   int offset = 0;
   int no = 0;
 
@@ -80,9 +77,8 @@ int ZeroLess::CMP_Decode(const unsigned char *encoded_buffer,
     decoded_buffer += header->div_size;
 
     offset += Utility::GetAlignUp(div_section[no].size, 4);
-    div_index = ++no;
   }
-  while (div_index < header->div_num);
+  while (++no < header->div_num);
 
   return header->size;
 }
@@ -91,7 +87,7 @@ void ZeroLess::CMP_DecodeOne(const ENCODE_DIV_SECTION *section,
                              const unsigned char *encoded_buffer,
                              unsigned char *decoded_buffer)
 {
-  if (ENCODE_TYPE_SLIDE == section->type)
+  if (section->type == ENCODE_TYPE_SLIDE)
   {
     SlideDecode(encoded_buffer, decoded_buffer, section->size);
   }
@@ -110,7 +106,7 @@ void ZeroLess::SlideDecode(const unsigned char *in_buffer,
   int32_t flags = 0;
   uint32_t r = BUFFER_SIZE - MATCH_LENGTH;
 
-  std::vector<unsigned char> buffer(BUFFER_SIZE + MATCH_LENGTH - 1);
+  std::vector<unsigned char> buffer(BUFFER_SIZE + MATCH_LENGTH - 1, 0);
   remaining_size = size;
 
   while (true)
@@ -139,8 +135,6 @@ void ZeroLess::SlideDecode(const unsigned char *in_buffer,
         return;
       }
 
-      // Decode data into buffer
-      // Maximum length is rhs low nibble + 2
       lhs |= ((rhs & 0xF0) << 4);
       rhs = (rhs & 0x0F) + THRESHOLD;
 

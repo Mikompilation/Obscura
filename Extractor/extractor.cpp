@@ -1,6 +1,6 @@
 #include "extractor.h"
 
-constexpr char *OBSCURA_VERSION = "0.3";
+constexpr char *OBSCURA_VERSION = "0.0.3";
 
 int main(int argc, char *argv[])
 {

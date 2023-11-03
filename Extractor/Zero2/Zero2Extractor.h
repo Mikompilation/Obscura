@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "../Constants.h"
@@ -13,9 +12,12 @@ namespace Zero2
 {
 struct _CD_DAT_TBL
 {
-  //uint32_t cmp_flg : 1;
-  //uint32_t exist_flg : 1;
-  //uint32_t start_sector : 30;
+  // Note: This is from retail versions of Zero 2.
+  // For version compatibility we must avoid using it
+  // uint32_t cmp_flg : 1;
+  // uint32_t exist_flg : 1;
+  // uint32_t start_sector : 30;
+
   uint32_t start_sector;
   uint32_t size;
   uint32_t cmp_size;
@@ -42,8 +44,8 @@ inline static const std::map<ENUM_GAME_VERSION, AddressTable>
 class FileExtractor : public ZeroReader
 {
  private:
-  const _CD_DAT_TBL *ptr_cd_dat;
-  const AddressTable *ptr_address_table;
+  std::unique_ptr<_CD_DAT_TBL[]> ptr_cd_dat;
+  std::unique_ptr<AddressTable> ptr_address_table;
 
  public:
   FileExtractor(IsoReader *iso_reader, std::filesystem::path output_directory,
