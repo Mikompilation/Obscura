@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 constexpr int GameTitleIdLength = 0xB;
 
@@ -29,8 +28,8 @@ struct ZeroGameLookupData
   ENUM_GAME_VERSION game_version;
 };
 
-const std::vector<ZeroGameLookupData> GAME_VERSION_TABLE = {
-  //  FATAL FRAME 1 US
+const ZeroGameLookupData GAME_VERSION_TABLE[6] = {
+  // FATAL FRAME 1 US
     {0x20000010, "SLUS_203.88", GAME_TITLE_ZERO_1, GAME_VERSION_NTSCU},
 
  // FATAL FRAME 2 US
