@@ -2,59 +2,50 @@
 
 #include <string>
 
-/// Fatal Frame 2 constants
-inline const int GameTitleIdLength = 0xB;
-inline const int US_JP_GAME_TITLE_OFFSET = 0x8A010;
-inline const int EU_GAME_TITLE_OFFSET = 0x89810;
+constexpr int GameTitleIdLength = 0xB;
 
-enum eRegion {
-  UNKNOWN,
-  NTSCU,
-  NTSCJ,
-  PAL
+enum ENUM_GAME_TITLE
+{
+  GAME_TITLE_ZERO_1 = 0,
+  GAME_TITLE_ZERO_2,
+  GAME_TITLE_ZERO_3
 };
 
-struct GameRegion {
-  eRegion Region;
-  std::string TitleId;
-  int NumFiles;
-  int FileTableStartAddress;
-  int FileTypeTableStartAddress;
-  int FileArchiveStartAddress;
+enum ENUM_GAME_VERSION
+{
+  GAME_VERSION_NTSCU,
+  GAME_VERSION_NTSCJ,
+  GAME_VERSION_PAL,
+  GAME_VERSION_DEBUG,
+  GAME_VERSION_PROTO
 };
 
-inline GameRegion UnknownRegion {
-    UNKNOWN,
-    "",
-    0,
-    0,
-    0,
-    0
+struct ZeroGameLookupData
+{
+  uint32_t game_title_offset;
+  std::string game_serial;
+  ENUM_GAME_TITLE game_title;
+  ENUM_GAME_VERSION game_version;
 };
 
-inline GameRegion UsRegion {
-    NTSCU,
-    "SLUS_207.66",
-    0x106B,
-    0x2F90B8,
-    0x3055C0,
-    0x30D40000
-};
+const ZeroGameLookupData GAME_VERSION_TABLE[6] = {
+  // FATAL FRAME 1 US
+    {0x20000010, "SLUS_203.88", GAME_TITLE_ZERO_1, GAME_VERSION_NTSCU},
 
-inline GameRegion JpRegion {
-    NTSCJ,
-    "SLPS_253.03",
-    0x106B,
-    0x002F85F8,
-    0x304B00,
-    0x30D40000
-};
+ // FATAL FRAME 2 US
+    {0x0008A010, "SLUS_207.66", GAME_TITLE_ZERO_2, GAME_VERSION_NTSCU},
 
-inline GameRegion EuRegion {
-    PAL,
-    "SLES_523.84",
-    0x118b,
-    0x286FF8,
-    0x294280,
-    0x493E0000
+ // FATAL FRAME 2 JP
+    {0x0008A010, "SLPS_253.03", GAME_TITLE_ZERO_2, GAME_VERSION_NTSCJ},
+
+ // FATAL FRAME 2 EU
+    {0x00089810, "SLES_523.84", GAME_TITLE_ZERO_2,   GAME_VERSION_PAL},
+
+ // FATAL FRAME 2 DEBUG
+    {0x0019C810, "SLES_523.84", GAME_TITLE_ZERO_2, GAME_VERSION_DEBUG},
+
+ // FATAL FRAME 2 PROTOTYPE
+    {0x00088810, "SLPS_999.99", GAME_TITLE_ZERO_2, GAME_VERSION_PROTO}
+
+  // FATAL FRAME 3
 };
