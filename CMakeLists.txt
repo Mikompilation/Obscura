@@ -11,3 +11,5 @@ endif()
 
 add_subdirectory(Extractor)
 add_subdirectory(ModelConverter)
+
+configure_file(./resource/ZeroFileDictionary.json ${CMAKE_BINARY_DIR}/Obscura COPYONLY)

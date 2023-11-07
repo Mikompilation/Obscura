@@ -9,4 +9,5 @@
 #include "Zero3/Zero3Extractor.h"
 
 void ExtractGameFiles(std::filesystem::path input_iso_path,
+                      std::filesystem::path obscura_directory,
                       std::filesystem::path output_directory);
