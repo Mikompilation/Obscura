@@ -24,7 +24,3 @@ add_executable(Extractor
 	    Zero2/Zero2Extractor.cpp
 	    Zero2/Zero2Extractor.h
         )
-
-add_custom_target(copy-runtime-files ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resource ${CMAKE_BINARY_DIR}/Obscura
-    DEPENDS ${MY_TARGET})
