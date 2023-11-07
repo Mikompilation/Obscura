@@ -26,5 +26,5 @@ add_executable(Extractor
         )
 
 add_custom_target(copy-runtime-files ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resource/dictionary ${CMAKE_BINARY_DIR}/Obscura
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resource ${CMAKE_BINARY_DIR}/Obscura
     DEPENDS ${MY_TARGET})

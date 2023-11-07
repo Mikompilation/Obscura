@@ -14,8 +14,9 @@ class ZeroReader
 
   std::filesystem::path _obscura_directory;
   std::filesystem::path _output_directory;
-  std::vector<std::string> _file_name_list;
   std::vector<unsigned char> _read_buffer;
+
+  std::vector<std::string> _file_name_list;
 
   ZeroReader(IsoReader *iso_reader, std::filesystem::path obscura_directory,
              std::filesystem::path output_directory, bool verbose)
@@ -36,29 +37,34 @@ class ZeroReader
 
   virtual void ExtractFiles() = 0;
 
-  void LoadFileDictionary()
+  bool LoadFileDictionary()
   {
     std::string game_serial = _game_lookup_data.game_serial;
-
     std::filesystem::path file_path =
-        _obscura_directory / (game_serial + ".json");
+        _obscura_directory / "ZeroFileDictionary.json";
 
     std::ifstream file(file_path, std::ios::binary);
     if (!file.is_open())
     {
-      return;
+      return false;
     }
 
     nlohmann::json root = nlohmann::json::parse(file, nullptr, true, true);
 
-    if (root["game_serial"] != game_serial)
+    for (auto entry : root)
     {
-      throw std::runtime_error("Invalid game serial for game dictionary!");
+      std::string s = entry["game_serial"];
+      if (game_serial.compare(entry["game_serial"]))
+      {
+        continue;
+      }
+
+      _file_name_list = entry["file_table"];
+      break;
     }
 
-    _file_name_list = root["file_table"];
-
     file.close();
+    return (_file_name_list.size() > 0);
   }
 
   std::string GetFilePath(int32_t file_no)

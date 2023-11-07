@@ -65,9 +65,14 @@ void ExtractGameFiles(std::filesystem::path input_iso_path,
 
     default:
     {
-      throw std::runtime_error("Currently not supported!");
+      throw std::runtime_error("Game Title not supported!");
     }
     break;
+  }
+
+  if (!zero_reader->LoadFileDictionary())
+  {
+    throw std::runtime_error("Could not load file dictionary!");
   }
 
   zero_reader->ExtractFiles();
