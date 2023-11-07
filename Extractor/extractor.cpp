@@ -1,6 +1,6 @@
 #include "extractor.h"
 
-constexpr char *OBSCURA_VERSION = "0.0.3";
+constexpr char *OBSCURA_VERSION = "0.0.4";
 
 int main(int argc, char *argv[])
 {
@@ -47,6 +47,12 @@ void ExtractGameFiles(std::filesystem::path input_iso_path,
 
   switch (iso_reader.GetGameTitle())
   {
+    case GAME_TITLE_ZERO_1:
+    {
+      zero_reader =
+          std::make_unique<Zero1::FileExtractor>(&iso_reader, output_directory);
+    }
+    break;
     case GAME_TITLE_ZERO_2:
     {
       zero_reader =

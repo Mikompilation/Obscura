@@ -1,5 +1,4 @@
 #include "Zero2Extractor.h"
-#include "../Zero3/Zero3_DirectoryTable.hpp"
 
 using namespace Zero2;
 
@@ -51,12 +50,12 @@ void FileExtractor::ExtractFiles()
   }
 }
 
-bool FileExtractor::ExtractRawFile(int file_id, unsigned int file_address,
+bool FileExtractor::ExtractRawFile(int file_no, unsigned int file_address,
                                    unsigned int size)
 {
-  auto file_path = GetFilePath(file_id);
+  auto file_path = GetFilePath(file_no);
 
-  printf("Extract File [Addr 0x%08X][ Sz: %08X ] ... %ls\n", file_address, size,
+  printf("Extract File [Addr 0x%08X][ Sz: %08X ] ... %s\n", file_address, size,
          file_path.c_str());
 
   _read_buffer.resize(size);
@@ -68,11 +67,11 @@ bool FileExtractor::ExtractRawFile(int file_id, unsigned int file_address,
                         _output_directory / file_path);
 }
 
-bool FileExtractor::ExtractCompressedFile(int file_id,
+bool FileExtractor::ExtractCompressedFile(int file_no,
                                           unsigned int file_address,
                                           unsigned int size)
 {
-  auto file_path = GetFilePath(file_id);
+  auto file_path = GetFilePath(file_no);
   std::vector<unsigned char> decoded_buffer;
 
   _read_buffer.resize(size);
@@ -80,7 +79,7 @@ bool FileExtractor::ExtractCompressedFile(int file_id,
   _iso_reader->Seek(file_address);
   _iso_reader->ReadBuffer((char *) _read_buffer.data(), size);
 
-  printf("Decode File [Addr 0x%08X][ Sz: %08X ] ... %ls\n", file_address, size,
+  printf("Decode File [Addr 0x%08X][ Sz: %08X ] ... %s\n", file_address, size,
          file_path.c_str());
 
   if (!ZeroLess::DecompressBuffer(_read_buffer, decoded_buffer))
@@ -90,23 +89,6 @@ bool FileExtractor::ExtractCompressedFile(int file_id,
 
   return SaveFileToDisk(decoded_buffer.data(), decoded_buffer.size(),
                         _output_directory / file_path);
-}
-
-const std::filesystem::path FileExtractor::GetFilePath(uint32_t file_no)
-{
-  const FileNameDat *file_dat = nullptr;
-
-  if (_game_lookup_data.game_version == GAME_VERSION_NTSCJ
-      || _game_lookup_data.game_version == GAME_VERSION_NTSCU)
-  {
-    file_dat = &FILENAME_DATA_NTSC[file_no];
-  }
-  else
-  {
-    file_dat = &FILENAME_DATA_PAL[file_no];
-  }
-
-  return FILE_DIRECTORY_LIST[file_dat->path_no] / file_dat->file_name;
 }
 
 bool FileExtractor::GetFileIsCmp(uint32_t file_no)

@@ -53,6 +53,11 @@ class IsoReader
     return _lookup_data.game_version;
   }
 
+  std::string GetGameSerial()
+  {
+    return _lookup_data.game_serial;
+  }
+
   bool ValidGameRegion()
   {
     if (_file_stream.fail())

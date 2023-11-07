@@ -5,9 +5,6 @@
 #include "../Utility.h"
 #include "../ZeroReader.h"
 
-#include "Zero2_DirectoryTable.hpp"
-#include "Zero2_FileTable.hpp"
-
 namespace Zero2
 {
 struct _CD_DAT_TBL
@@ -38,7 +35,7 @@ inline static const std::map<ENUM_GAME_VERSION, AddressTable>
         {GAME_VERSION_NTSCU, {4203, 0x002F90B8, 0x30D40000}},
         {GAME_VERSION_NTSCJ, {4203, 0x002F85F8, 0x30D40000}},
         {GAME_VERSION_DEBUG, {4491, 0x003EDEB8, 0x493E0000}},
-        {GAME_VERSION_PROTO, {3077, 0x00286FF8, 0x493E0000}}
+        {GAME_VERSION_PROTO, {3077, 0x00233AB0, 0x61A80000}}
 };
 
 class FileExtractor : public ZeroReader
@@ -61,7 +58,6 @@ class FileExtractor : public ZeroReader
   bool ExtractCompressedFile(int file_no, unsigned int file_address,
                              unsigned int size);
 
-  const std::filesystem::path GetFilePath(uint32_t file_no);
   bool GetFileIsCmp(uint32_t file_no);
   bool GetFileIsExist(uint32_t file_no);
   uint32_t GetFileStartSector(uint32_t file_no);

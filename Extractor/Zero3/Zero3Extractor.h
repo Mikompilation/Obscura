@@ -1,12 +1,8 @@
-
 #pragma once
 
 #include "../Constants.h"
 #include "../Encode/ZeroLess.h"
 #include "../ZeroReader.h"
-
-#include "Zero3_DirectoryTable.hpp"
-#include "Zero3_FileTable.hpp"
 
 namespace Zero3
 {
