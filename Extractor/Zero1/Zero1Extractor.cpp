@@ -3,9 +3,10 @@
 using namespace Zero1;
 
 FileExtractor::FileExtractor(IsoReader *iso_reader,
+                             std::filesystem::path obscura_directory,
                              std::filesystem::path output_directory,
                              bool verbose_log)
-    : ZeroReader(iso_reader, output_directory, verbose_log)
+    : ZeroReader(iso_reader, obscura_directory, output_directory, verbose_log)
 {
   // If the version is unsupported then we throw std::out_of_range
   // and we fail with the default help message.

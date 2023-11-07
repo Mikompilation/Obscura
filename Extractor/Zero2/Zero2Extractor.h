@@ -45,7 +45,8 @@ class FileExtractor : public ZeroReader
   std::unique_ptr<AddressTable> ptr_address_table;
 
  public:
-  FileExtractor(IsoReader *iso_reader, std::filesystem::path output_directory,
+  FileExtractor(IsoReader *iso_reader, std::filesystem::path obscura_directory,
+                std::filesystem::path output_directory,
                 bool verbose_log = false);
   ~FileExtractor();
 

@@ -9,7 +9,8 @@ namespace Zero3
 class FileExtractor : public ZeroReader
 {
  public:
-  FileExtractor(IsoReader *iso_reader, std::filesystem::path output_directory,
+  FileExtractor(IsoReader *iso_reader, std::filesystem::path obscura_directory,
+                std::filesystem::path output_directory,
                 bool verbose_log = false);
   ~FileExtractor();
 

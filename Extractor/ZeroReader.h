@@ -12,14 +12,16 @@ class ZeroReader
   IsoReader *_iso_reader;
   ZeroGameLookupData _game_lookup_data;
 
+  std::filesystem::path _obscura_directory;
   std::filesystem::path _output_directory;
   std::vector<std::string> _file_name_list;
   std::vector<unsigned char> _read_buffer;
 
-  ZeroReader(IsoReader *iso_reader, std::filesystem::path output_directory,
-             bool verbose)
+  ZeroReader(IsoReader *iso_reader, std::filesystem::path obscura_directory,
+             std::filesystem::path output_directory, bool verbose)
   {
     _iso_reader = iso_reader;
+    _obscura_directory = obscura_directory.parent_path();
     _output_directory = output_directory;
     _game_lookup_data = iso_reader->GetLookupData();
     _verbose_output = verbose;
@@ -39,7 +41,7 @@ class ZeroReader
     std::string game_serial = _game_lookup_data.game_serial;
 
     std::filesystem::path file_path =
-        std::filesystem::current_path() / (game_serial + ".json");
+        _obscura_directory / (game_serial + ".json");
 
     std::ifstream file(file_path, std::ios::binary);
     if (!file.is_open())

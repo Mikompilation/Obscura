@@ -4,6 +4,7 @@ constexpr char *OBSCURA_VERSION = "0.0.4";
 
 int main(int argc, char *argv[])
 {
+  const std::filesystem::path obscura_directory = argv[0];
   argparse::ArgumentParser program("Mikompilation Extractor", OBSCURA_VERSION);
 
   program.add_argument("iso")
@@ -21,7 +22,8 @@ int main(int argc, char *argv[])
   try
   {
     program.parse_args(argc, argv);
-    ExtractGameFiles(program.get("iso"), program.get("output"));
+    ExtractGameFiles(program.get("iso"), obscura_directory,
+                     program.get("output"));
   }
   catch (const std::runtime_error &err)
   {
@@ -34,6 +36,7 @@ int main(int argc, char *argv[])
 }
 
 void ExtractGameFiles(std::filesystem::path input_iso_path,
+                      std::filesystem::path obscura_directory,
                       std::filesystem::path output_directory)
 {
   IsoReader iso_reader(input_iso_path.string());
@@ -49,14 +52,14 @@ void ExtractGameFiles(std::filesystem::path input_iso_path,
   {
     case GAME_TITLE_ZERO_1:
     {
-      zero_reader =
-          std::make_unique<Zero1::FileExtractor>(&iso_reader, output_directory);
+      zero_reader = std::make_unique<Zero1::FileExtractor>(
+          &iso_reader, obscura_directory, output_directory);
     }
     break;
     case GAME_TITLE_ZERO_2:
     {
-      zero_reader =
-          std::make_unique<Zero2::FileExtractor>(&iso_reader, output_directory);
+      zero_reader = std::make_unique<Zero2::FileExtractor>(
+          &iso_reader, obscura_directory, output_directory);
     }
     break;
 
