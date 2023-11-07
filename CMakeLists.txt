@@ -7,9 +7,9 @@ cmake_policy(SET CMP0077 NEW)
 
 if (UNIX OR APPLE)
     set(CMAKE_ERROR_DEPRECATED OFF)
-endif()
+endif ()
 
 add_subdirectory(Extractor)
 add_subdirectory(ModelConverter)
 
-configure_file(./resource/ZeroFileDictionary.json ${CMAKE_BINARY_DIR}/Obscura COPYONLY)
+add_custom_target(copy-runtime-files ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ./resource ${CMAKE_BINARY_DIR}/Obscura DEPENDS ${MY_TARGET})
