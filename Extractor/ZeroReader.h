@@ -15,7 +15,6 @@ class ZeroReader
   std::filesystem::path _obscura_directory;
   std::filesystem::path _output_directory;
   std::vector<unsigned char> _read_buffer;
-
   std::vector<std::string> _file_name_list;
 
   ZeroReader(IsoReader *iso_reader, std::filesystem::path obscura_directory,
@@ -26,8 +25,6 @@ class ZeroReader
     _output_directory = output_directory;
     _game_lookup_data = iso_reader->GetLookupData();
     _verbose_output = verbose;
-
-    LoadFileDictionary();
   }
 
  public:
@@ -53,7 +50,6 @@ class ZeroReader
 
     for (auto entry : root)
     {
-      std::string s = entry["game_serial"];
       if (game_serial.compare(entry["game_serial"]))
       {
         continue;
