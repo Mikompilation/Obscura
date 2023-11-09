@@ -38,12 +38,11 @@ Vector3 &operator+=(Vector3 &source, const Vector3 &target) {
 }
 
 Vector3& operator+(Vector3 &source, Vector3 &target) {
-    Vector3 result = {0};
-    result.x = source.x + target.x;
-    result.y = source.y + target.y;
-    result.z = source.z + target.z;
+    source.x = source.x + target.x;
+    source.y = source.y + target.y;
+    source.z = source.z + target.z;
 
-    return result;
+    return source;
 }
 
 Vector3 &operator+=(Vector3 &source, const Vector4 *target) {
