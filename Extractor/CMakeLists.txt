@@ -1,12 +1,12 @@
-include_directories(../argparse)
-include_directories(../json)
+include_directories(../third-party/argparse)
+include_directories(../third-party/json)
 
 add_executable(Extractor
         extractor.h
         extractor.cpp
         
-        ../argparse/argparse.hpp
-        ../json/json.hpp
+        ../third-party/argparse/argparse.hpp
+        ../third-party/json/json.hpp
         Utility.h
         Utility.cpp
         Regions.h

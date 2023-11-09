@@ -9,6 +9,7 @@ if (UNIX OR APPLE)
     set(CMAKE_ERROR_DEPRECATED OFF)
 endif ()
 
+add_subdirectory(third-party)
 add_subdirectory(Extractor)
 add_subdirectory(ModelConverter)
 
