@@ -13,8 +13,6 @@ add_executable(ModelConverter
 
         game/vif.h
         game/vif.cpp
-        game/Mesh.cpp
-        game/Mesh.h
         game/Texture.h
         game/Texture.cpp
         game/packfile.h
@@ -26,8 +24,6 @@ add_executable(ModelConverter
         game/sgd.h
         game/sgd.cpp
         game/sgd_types.h
-        game/Exporter.cpp
-        game/Exporter.h
         game/gra3dSGDData.cpp
         game/gra3dSGDData.h
 
@@ -39,7 +35,9 @@ add_executable(ModelConverter
         utils/assimp_utils.h
 
         ../third-party/stb/stb_write_image.h
-        )
+        game/GsTexture.cpp
+        game/GsTexture.h
+)
 
 target_link_libraries(ModelConverter PRIVATE spdlog assimp)
 
