@@ -13,4 +13,4 @@ add_subdirectory(third-party)
 add_subdirectory(Extractor)
 add_subdirectory(ModelConverter)
 
-add_custom_target(copy-runtime-files ALL COMMAND ${CMAKE_COMMAND} -E copy_directory ./resource ${CMAKE_BINARY_DIR}/Obscura DEPENDS ${MY_TARGET})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resource/ZeroFileDictionary.json DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

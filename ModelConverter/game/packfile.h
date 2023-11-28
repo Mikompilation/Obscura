@@ -2,10 +2,11 @@
 
 #include <stdint.h>
 
-typedef struct { // 0x10
-  /* 0x0 */ int pak_num;
-  /* 0x4 */ int map_flg;
-  /* 0x8 */ int pad[2];
+typedef struct
+{
+  int pak_num;
+  int map_flg;
+  int pad[2];
 } MANMPK_HEADER;
 
 struct PK2_HEAD
