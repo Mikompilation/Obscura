@@ -1,5 +1,6 @@
 #include "GsTexture.h"
 #include "utils/utility.h"
+#include <vector>
 
 Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop)
 {
