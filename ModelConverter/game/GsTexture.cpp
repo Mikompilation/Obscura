@@ -33,7 +33,6 @@ Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop)
 
     auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
 
-
     // Restore line if some textures are broken                                                   sizeof(sceGsLoadImage)
     auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[image_color_index_off], 0);
     auto image_data = new std::vector<unsigned int>(data_size);
