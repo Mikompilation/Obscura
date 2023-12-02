@@ -19,6 +19,9 @@ Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop)
             numColors = 0x10;
             image_color_index_off = data_size >> 1;
             break;
+        case PSMCT32:
+            image_h = pow(2, ceil(log(image_h)/log(2)));
+            data_size = image_w * image_h;
         case PSMT8H:
         case PSMT8:
             clutType = IDTEX8;
@@ -26,19 +29,13 @@ Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop)
             numColors = 0x100;
             image_color_index_off = data_size;
             break;
-        case PSMCT32:
-            clutType = RGBA32;
-            clutColorType = RGBA32;
-            numColors = 0x100;
-            image_h = image_w;
-            data_size = image_w * image_w;
-            image_color_index_off = data_size;
-            break;
     }
 
     auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
 
-    auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[image_color_index_off], sizeof(sceGsLoadImage));
+
+    // Restore line if some textures are broken                                                   sizeof(sceGsLoadImage)
+    auto image_color_data = RelOffsetToPtr<uint8_t>(&image_color_index[image_color_index_off], 0);
     auto image_data = new std::vector<unsigned int>(data_size);
 
     for(auto x = 0; x < image_w; x++)
