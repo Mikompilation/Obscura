@@ -4,68 +4,26 @@
 void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
     switch (pHead->iCategory) {
         case VUVN:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|          {:02d}         |", VUVN);
-            programLogger->info("|   VUVN Type: {:#x}    |", pHead->VUVNDesc.ucVectorType);
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] VUVN Type: {:#x}", VUVN, pHead->VUVNDesc.ucVectorType);
             break;
         case MESH:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", MESH);
-            programLogger->info("|   MESH Type: {:#x}   |", pHead->VUMeshDesc.ucMeshType);
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] MESH Type: {:#x}", MESH, pHead->VUMeshDesc.ucMeshType);
             break;
         case MATERIAL:
             programLogger->info("----- New Sub Model Part -----");
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", MATERIAL);
-            programLogger->info("|     {}     |", GetMaterialPtr(pSGDTop, pHead->VUMaterialDesc.pMat)->strTexName);
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] MATE Name: {}", MATERIAL, GetMaterialPtr(pSGDTop, pHead->VUMaterialDesc.pMat)->strTexName);
             break;
         case COORDINATE:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", COORDINATE);
-            programLogger->info("|     Coordinates     |");
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] COORD", COORDINATE);
             break;
         case BOUNDING_BOX:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", BOUNDING_BOX);
-            programLogger->info("|     BoundingBox     |");
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] BoundingBox: {}", BOUNDING_BOX);
             break;
         case GS_IMAGE:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", GS_IMAGE);
-            programLogger->info("|     GS Image Data   |");
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] GsTex: {}", GS_IMAGE);
             break;
         case TRI2:
-            programLogger->info("|---------------------|");
-            programLogger->info("|                     |");
-            programLogger->info("|                     |");
-            programLogger->info("|         {:02d}          |", TRI2);
-            programLogger->info("|     TRI2 Data       |");
-            programLogger->info("|                     |");
-            programLogger->info("|---------------------|");
+            programLogger->info("[{:02d}] Tri2Data: {}", TRI2);
             break;
         default:
             PrintEmptyBlock();
@@ -74,13 +32,7 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
 }
 
 void PrintEmptyBlock() {
-    programLogger->info("|---------------------|");
-    programLogger->info("|                     |");
-    programLogger->info("|                     |");
-    programLogger->info("|        EMPTY        |");
-    programLogger->info("|                     |");
-    programLogger->info("|                     |");
-    programLogger->info("|---------------------|");
+    programLogger->info("-----     EMPTY     -----");
 }
 
 void PrintBlockBeginning(int i) {
@@ -88,7 +40,7 @@ void PrintBlockBeginning(int i) {
 }
 
 void PrintBlockEnding(int i) {
-    programLogger->info("-----  End Block {}  -----", i);
+    programLogger->info("-----  End Block {}  -----\n", i);
 }
 
 void InitLogging() {
