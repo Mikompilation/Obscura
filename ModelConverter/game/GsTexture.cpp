@@ -20,7 +20,8 @@ Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop)
             image_color_index_off = data_size >> 1;
             break;
         case PSMCT32:
-            image_h = pow(2, ceil(log(image_h)/log(2)));
+            //image_h = pow(2, ceil(log(image_h)/log(2)));
+            image_h = image_w;
             data_size = image_w * image_h;
         case PSMT8H:
         case PSMT8:
