@@ -43,6 +43,14 @@ void PrintBlockEnding(int i) {
     programLogger->info("-----  End Block {}  -----\n", i);
 }
 
+void PrintSGDBeginning(int i) {
+    programLogger->info("-----  Begin SGD {}  -----", i);
+}
+
+void PrintSGDEnding(int i) {
+    programLogger->info("-----  End SGD {}  -----\n", i);
+}
+
 void InitLogging() {
     spdlog::set_pattern("[%H:%M:%S] [%n] [%^%l%$] [thread %t] %v");
 

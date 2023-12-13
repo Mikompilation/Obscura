@@ -15,5 +15,7 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER* pSGDTop);
 void PrintEmptyBlock();
 void PrintBlockBeginning(int i);
 void PrintBlockEnding(int i);
+void PrintSGDBeginning(int i);
+void PrintSGDEnding(int i);
 
 #endif //FATALSTACK_LOGGING_H

@@ -60,7 +60,7 @@ void Model::ExtractModel()
 
 void Model::BuildScene()
 {
-    this->Model::ConvertToNodeBinaryTree();
+    this->ConvertToNodeBinaryTree();
     this->scene->mNumMeshes = this->aiMeshes.size();
     this->scene->mMeshes = this->aiMeshes.data();
     this->scene->mNumMaterials = this->aiMaterials.size();
@@ -72,6 +72,7 @@ void Model::BuildScene()
 void Model::ConvertToNodeBinaryTree()
 {
     this->scene->mRootNode = aiNodes[0];
+
     for (auto i = 0; i < aiNodes.size(); i++)
     {
         aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
@@ -235,11 +236,15 @@ void Model::ReadSGD(PK2_HEAD* mdlPak)
         return;
     }
 
+    programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
+
     for (auto i = 0; i < mdlPak->pack_num; i++)
     {
+        PrintSGDBeginning(i);
         sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
         sgdRemap(sgdCurr);
         TraverseProcUnit(sgdCurr);
+        PrintSGDEnding(i);
     }
 }
 
@@ -336,20 +341,17 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
 }
 
 void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
-    SGDVUMESHPOINTNUM *pMeshInfo;
-
     if (pHead->VUMeshDesc.ucMeshType == 0) {
         return;
     }
-    else if (pHead->VUMeshDesc.ucMeshType == 0x80) {
+
+    if (pHead->VUMeshDesc.ucMeshType == 0x80) {
         // This just adds a triangle below the character, probably for getting floor coordinates of the model
-        pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
+        //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
         return;
     }
-    else {
-        pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
-    }
 
+    auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
     auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
 
     SGDVUMESHSTDATA *sgdMeshData;
