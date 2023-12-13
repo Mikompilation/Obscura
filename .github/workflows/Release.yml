@@ -50,6 +50,7 @@ jobs:
         working-directory: build/Obscura/Release
         shell: pwsh
         run: |
+          Copy-Item "../ZeroFileDictionary.json"
           Compress-Archive * ../../Obscura_${{ matrix.sys.name }}_v${{ github.event.inputs.version }}.zip
 
       - name: Zip OSX App

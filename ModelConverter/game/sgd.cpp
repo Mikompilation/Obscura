@@ -1,7 +1,3 @@
-//
-// Created by wagrenier on 11/30/2021.
-//
-
 #include "sgd.h"
 #include <stdio.h>
 

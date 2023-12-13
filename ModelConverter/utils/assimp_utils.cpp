@@ -25,13 +25,12 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     m->mPrimitiveTypes = aiPrimitiveType_TRIANGLE;
 
     m->mNumVertices = numPoints;
-    m->mVertices = new aiVector3D[numPoints];
-    m->mNormals = new aiVector3D[numPoints];
-    m->mTextureCoords[0] = new aiVector3D[numPoints];
+    m->mVertices = new aiVector3D[m->mNumVertices];
+    m->mNormals = new aiVector3D[m->mNumVertices];
+    m->mTextureCoords[0] = new aiVector3D[m->mNumVertices];
     m->mNumUVComponents[0] = 2;
     m->mNumFaces = numPoints - 2;
-    m->mFaces = new aiFace[numPoints - 2];
-    m->mMethod = aiMorphingMethod_VERTEX_BLEND;
+    m->mFaces = new aiFace[m->mNumFaces];
 
     //m->mAABB = aiAABB();
     //m->mAABB.mMin = aiVector3D(boundingBoxMin.x, boundingBoxMin.y, boundingBoxMin.z);
@@ -40,7 +39,7 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     return m;
 }
 
-aiMaterial *FindMaterial(std::vector<aiMaterial *> materials, const std::string& name, int *matIndex) {
+aiMaterial *FindMaterial(const std::vector<aiMaterial *>& materials, const std::string& name, int *matIndex) {
     aiMaterial *currentMaterial = nullptr;
 
     for(auto i = 0; i < materials.size(); i++)
@@ -61,10 +60,12 @@ aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::str
     auto currentMaterial = new aiMaterial();
 
     currentMaterial->AddProperty(&s,  AI_MATKEY_NAME);
-    pMaterial->vDiffuse.w /=  128.0f;
-    pMaterial->vAmbient.w /=  128.0f;
-    pMaterial->vEmission.w /= 128.0f;
-    pMaterial->vSpecular.w /= 128.0f;
+
+    // Scale the float value for W
+    pMaterial->vDiffuse.w =  255.0f * pMaterial->vDiffuse.w  / 128.0f;
+    pMaterial->vAmbient.w =  255.0f * pMaterial->vAmbient.w  / 128.0f;
+    pMaterial->vEmission.w = 255.0f * pMaterial->vEmission.w / 128.0f;
+    pMaterial->vSpecular.w = 255.0f * pMaterial->vSpecular.w / 128.0f;
 
     currentMaterial->AddProperty(&pMaterial->vDiffuse, 1, AI_MATKEY_COLOR_DIFFUSE);
     currentMaterial->AddProperty(&pMaterial->vAmbient, 1, AI_MATKEY_COLOR_AMBIENT);
@@ -76,7 +77,10 @@ aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::str
         return currentMaterial;
     }
 
-    auto texName = name + ".png";
+    // TODO: Filter the value name to remove extensions
+    std::filesystem::path p(name);
+
+    auto texName = p.stem().string() + ".png";
     SaveImage(exportFolder, texName, t->GetWidth(), t->GetHeight(), 4, t->GetRawData());
     auto b = aiString(texName);
     currentMaterial->AddProperty(&b, AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0));

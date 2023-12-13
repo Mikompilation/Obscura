@@ -44,3 +44,5 @@ cmake-build-release/
 .idea/
 
 .DS_Store
+/.vs
+/out

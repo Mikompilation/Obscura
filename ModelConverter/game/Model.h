@@ -3,9 +3,9 @@
 #include <vector>
 #include <map>
 #include "Texture.h"
-#include "Mesh.h"
 #include "assimp/scene.h"
 #include "packfile.h"
+#include "sgd_types.h"
 #include <filesystem>
 
 struct MultiBoneMesh
@@ -25,7 +25,6 @@ private:
     std::filesystem::path exportFilename;
     PK2_HEAD* pakFile;
     std::vector<Texture *> textures;
-    std::vector<Mesh> vectorMeshes;
     SGDFILEHEADER *sgdTop;
     SGDFILEHEADER *sgdCurr;
     SGDPROCUNITHEADER *s_ppuhVUVN;

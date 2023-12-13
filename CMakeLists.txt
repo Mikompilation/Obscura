@@ -7,7 +7,10 @@ cmake_policy(SET CMP0077 NEW)
 
 if (UNIX OR APPLE)
     set(CMAKE_ERROR_DEPRECATED OFF)
-endif()
+endif ()
 
+add_subdirectory(third-party)
 add_subdirectory(Extractor)
 add_subdirectory(ModelConverter)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resource/ZeroFileDictionary.json DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

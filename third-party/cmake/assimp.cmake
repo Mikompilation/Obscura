@@ -10,14 +10,16 @@ set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "Disable all exporters"
 set(ASSIMP_BUILD_OBJ_EXPORTER OFF CACHE BOOL "Enable OBJ exporter" FORCE)
 set(ASSIMP_BUILD_COLLADA_EXPORTER OFF CACHE BOOL "Enable COLLADA exporter" FORCE)
 set(ASSIMP_BUILD_FBX_EXPORTER OFF CACHE BOOL "Enable FBX exporter" FORCE)
+set(ASSIMP_BUILD_ASSIMP_VIEW OFF CACHE BOOL "Disable assimp view" FORCE)
+
+# Enable GLTF importer and exporter, if importer is nor included then exporter build will fail
 set(ASSIMP_BUILD_GLTF_EXPORTER ON CACHE BOOL "Enable GLTF exporter" FORCE)
 set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "Enable GLTF importer" FORCE)
-set(ASSIMP_BUILD_ASSIMP_VIEW OFF CACHE BOOL "Disable assimp view" FORCE)
 
 FetchContent_Declare(
         assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
-        GIT_TAG 42386b8
+        GIT_TAG v5.3.1
 )
 
 FetchContent_MakeAvailable(assimp)

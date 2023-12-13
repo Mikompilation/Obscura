@@ -6,6 +6,9 @@
 #include "utils/assimp_utils.h"
 #include "utils/logging.h"
 #include "utils/utility.h"
+#include "gra3dSGDData.h"
+#include "assimp/postprocess.h"
+#include "GsTexture.h"
 
 Model::Model(std::filesystem::path filename)
 {
@@ -75,6 +78,13 @@ void Model::BuildScene()
   this->scene->mMaterials = this->aiMaterials.data();
   this->scene->mNumTextures = this->aiTextures.size();
   this->scene->mTextures = this->aiTextures.data();
+    this->ConvertToNodeBinaryTree();
+    this->scene->mNumMeshes = this->aiMeshes.size();
+    this->scene->mMeshes = this->aiMeshes.data();
+    this->scene->mNumMaterials = this->aiMaterials.size();
+    this->scene->mMaterials = this->aiMaterials.data();
+    this->scene->mNumTextures = this->aiTextures.size();
+    this->scene->mTextures = this->aiTextures.data();
 }
 
 void Model::ConvertToNodeBinaryTree()
@@ -87,6 +97,9 @@ void Model::ConvertToNodeBinaryTree()
 
     std::vector<aiNode *> children;
     for (auto j = 0; j < aiNodes.size(); j++)
+    this->scene->mRootNode = aiNodes[0];
+
+    for (auto i = 0; i < aiNodes.size(); i++)
     {
       if (aiNodes[j]->mParent == aiNodes[i] && j != i)
       {
@@ -341,6 +354,16 @@ void Model::ReadSGD(PK2_HEAD *mdlPak)
     sgdRemap(sgdCurr);
     TraverseProcUnit(sgdCurr);
   }
+    programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
+
+    for (auto i = 0; i < mdlPak->pack_num; i++)
+    {
+        PrintSGDBeginning(i);
+        sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
+        sgdRemap(sgdCurr);
+        TraverseProcUnit(sgdCurr);
+        PrintSGDEnding(i);
+    }
 }
 
 void Model::TraverseProcUnit(SGDFILEHEADER *sgd)
@@ -449,6 +472,9 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
     auto clutType = NO_CLUT;
     auto clutColorType = RGBA16;
     auto image_color_index_off = 0;
+    for (auto i = 0; i < rTexDesc->iNumTexture; i++)
+    {
+        this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
 
     switch (pTRI2HeadTop->gsli.bitbltbuf.DPSM)
     {
@@ -513,6 +539,9 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
   }
+        pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
+                                                         pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+    }
 }
 
 void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
@@ -533,8 +562,20 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
   {
     pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
   }
+void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
+    if (pHead->VUMeshDesc.ucMeshType == 0) {
+        return;
+    }
+
+    if (pHead->VUMeshDesc.ucMeshType == 0x80) {
+        // This just adds a triangle below the character, probably for getting floor coordinates of the model
+        //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
+        return;
+    }
 
   auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
+    auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
+    auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
 
   SGDVUMESHSTDATA *sgdMeshData;
 
