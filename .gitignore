@@ -46,3 +46,5 @@ cmake-build-release/
 .DS_Store
 /.vs
 /out
+
+build/
