@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "GsTexture.h"
 #include "assimp/postprocess.h"
 #include "gra3dSGDData.h"
 #include "packfile.h"
@@ -6,9 +7,6 @@
 #include "utils/assimp_utils.h"
 #include "utils/logging.h"
 #include "utils/utility.h"
-#include "gra3dSGDData.h"
-#include "assimp/postprocess.h"
-#include "GsTexture.h"
 
 Model::Model(std::filesystem::path filename)
 {
@@ -54,7 +52,10 @@ void Model::ExtractModel()
   if (!this->isCharacterModel)
   {
     exporterOptions |=
-        aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_Debone;
+        aiProcess_LimitBoneWeights | aiProcess_Triangulate
+        | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices
+        | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes
+        | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
   }
   else
   {
@@ -66,25 +67,18 @@ void Model::ExtractModel()
   }
 
   ExportScene(exportFolder / this->exportFilename, "gltf2", scene,
-              exporterOptions);
+              0);
 }
 
 void Model::BuildScene()
 {
-  this->Model::ConvertToNodeBinaryTree();
+  this->ConvertToNodeBinaryTree();
   this->scene->mNumMeshes = this->aiMeshes.size();
   this->scene->mMeshes = this->aiMeshes.data();
   this->scene->mNumMaterials = this->aiMaterials.size();
   this->scene->mMaterials = this->aiMaterials.data();
   this->scene->mNumTextures = this->aiTextures.size();
   this->scene->mTextures = this->aiTextures.data();
-    this->ConvertToNodeBinaryTree();
-    this->scene->mNumMeshes = this->aiMeshes.size();
-    this->scene->mMeshes = this->aiMeshes.data();
-    this->scene->mNumMaterials = this->aiMaterials.size();
-    this->scene->mMaterials = this->aiMaterials.data();
-    this->scene->mNumTextures = this->aiTextures.size();
-    this->scene->mTextures = this->aiTextures.data();
 }
 
 void Model::ConvertToNodeBinaryTree()
@@ -96,10 +90,8 @@ void Model::ConvertToNodeBinaryTree()
     aiNodes[i]->mMeshes = aiMeshesIndex[i].data();
 
     std::vector<aiNode *> children;
-    for (auto j = 0; j < aiNodes.size(); j++)
-    this->scene->mRootNode = aiNodes[0];
 
-    for (auto i = 0; i < aiNodes.size(); i++)
+    for (auto j = 0; j < aiNodes.size(); j++)
     {
       if (aiNodes[j]->mParent == aiNodes[i] && j != i)
       {
@@ -126,7 +118,7 @@ void Model::ConvertToNodeBinaryTree()
       {
         continue;
       }
-
+      
       auto extraBones = 1;
       auto hasExtraBone = false;
       auto extraBoneIndex = 0;
@@ -318,10 +310,16 @@ void Model::CalculateBoneTransforms()
 
   for (auto i = 0; i < aiNodes.size(); i++)
   {
+    
     this->aiNodes[i]->mParent =
         coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
 
     if (this->aiNodes[i]->mParent == nullptr)
+    {
+      this->aiNodes[i]->mTransformation = aiMatrix4x4();
+      continue;
+    }
+    else
     {
       this->aiNodes[i]->mTransformation = aiMatrix4x4();
       continue;
@@ -354,16 +352,16 @@ void Model::ReadSGD(PK2_HEAD *mdlPak)
     sgdRemap(sgdCurr);
     TraverseProcUnit(sgdCurr);
   }
-    programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
+  programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
 
-    for (auto i = 0; i < mdlPak->pack_num; i++)
-    {
-        PrintSGDBeginning(i);
-        sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
-        sgdRemap(sgdCurr);
-        TraverseProcUnit(sgdCurr);
-        PrintSGDEnding(i);
-    }
+  for (auto i = 0; i < mdlPak->pack_num; i++)
+  {
+    PrintSGDBeginning(i);
+    sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
+    sgdRemap(sgdCurr);
+    TraverseProcUnit(sgdCurr);
+    PrintSGDEnding(i);
+  }
 }
 
 void Model::TraverseProcUnit(SGDFILEHEADER *sgd)
@@ -399,6 +397,7 @@ void Model::SgSortUnitPrim(SGDPROCUNITHEADER *pHead)
 {
   switch (pHead->iCategory)
   {
+      /// Contains the vertex, normal data
     case VUVN:
       this->HandleVUVNDataBlock(pHead);
       break;
@@ -465,117 +464,29 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
 
   for (auto i = 0; i < rTexDesc->iNumTexture; i++)
   {
-    int image_h = pTRI2HeadTop->gsli.trxreg.RRH;
-    int image_w = pTRI2HeadTop->gsli.trxreg.RRW;
-    auto data_size = image_w * image_h;
-    auto numColors = 0;
-    auto clutType = NO_CLUT;
-    auto clutColorType = RGBA16;
-    auto image_color_index_off = 0;
-    for (auto i = 0; i < rTexDesc->iNumTexture; i++)
-    {
-        this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
-
-    switch (pTRI2HeadTop->gsli.bitbltbuf.DPSM)
-    {
-      case PSMT4:
-        clutType = IDTEX4;
-        clutColorType = RGBA32;
-        numColors = 16;
-        image_color_index_off = data_size >> 1;
-        break;
-      case PSMT8H:
-      case PSMT8:
-        clutType = IDTEX8;
-        clutColorType = RGBA32;
-        numColors = 256;
-        image_color_index_off = data_size;
-        break;
-      case PSMCT32:
-        clutType = NO_CLUT;
-        clutColorType = RGBA32;
-        numColors = 0;
-        image_color_index_off = 0;
-        image_h = image_w;
-        data_size = image_w * image_w;
-        break;
-    }
-
-    auto image_color_index = RelOffsetToPtr<uint8_t>(&pTRI2HeadTop[1], 0);
-    auto image_color_data = RelOffsetToPtr<uint8_t>(
-        &image_color_index[image_color_index_off], sizeof(sceGsLoadImage));
-    auto image_data = new std::vector<unsigned int>(data_size);
-
-    for (auto x = 0; x < image_w; x++)
-    {
-      for (auto y = 0; y < image_h; y++)
-      {
-        if (pTRI2HeadTop->gsli.bitbltbuf.DPSM == PSMCT32)
-        {
-          auto image_offset = x + y * image_w;
-          unsigned char r, g, b, a;
-          r = image_color_index[image_offset * 4 + 0];
-          g = image_color_index[image_offset * 4 + 1];
-          b = image_color_index[image_offset * 4 + 2];
-          a = image_color_index[image_offset * 4 + 3];
-
-          image_data->data()[image_offset] =
-              (unsigned int) ((a << 24) | (b << 16) | (g << 8) | r);
-        }
-        else
-        {
-          auto image_offset = x + y * image_w;
-          auto index = Tim2GetTexel(image_color_index, x, y, image_w, clutType);
-          image_data->data()[image_offset] = Tim2GetClutColor(
-              image_color_data, clutType, clutColorType, numColors, 0, index);
-        }
-      }
-    }
-
-    this->textures.emplace_back(
-        CreateTextureFromRawData(image_w, image_h, image_data->data(),
-                                 pTRI2HeadTop->gsli.bitbltbuf.DBP));
+    this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
 
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
   }
-        pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
-                                                         pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
-    }
 }
 
 void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
 {
-  SGDVUMESHPOINTNUM *pMeshInfo;
-
   if (pHead->VUMeshDesc.ucMeshType == 0)
   {
     return;
   }
-  else if (pHead->VUMeshDesc.ucMeshType == 0x80)
+  
+  if (pHead->VUMeshDesc.ucMeshType == 0x80)
   {
     // This just adds a triangle below the character, probably for getting floor coordinates of the model
-    pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
+    //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
     return;
   }
-  else
-  {
-    pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
-  }
-void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
-    if (pHead->VUMeshDesc.ucMeshType == 0) {
-        return;
-    }
-
-    if (pHead->VUMeshDesc.ucMeshType == 0x80) {
-        // This just adds a triangle below the character, probably for getting floor coordinates of the model
-        //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
-        return;
-    }
 
   auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
-    auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
-    auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
+  auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
 
   SGDVUMESHSTDATA *sgdMeshData;
 
@@ -611,8 +522,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
 
     unsigned int numPoint;
 
-    numPoint =
-        isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
+    numPoint = isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
 
     if (numPoint == 0)
     {
@@ -631,7 +541,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
       Vector3 v {};
       Vector3 n {};
 
-      /// MeshType == IMT_2
+      /// MeshType == iMT_2
       if (pHead->VUMeshDesc.ucMeshType == iMT_2)
       {
         this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
@@ -641,7 +551,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
         currentMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z,
                                                    0.0f};
       }
-      /// VectorType == 0x5
+      /// MeshType = 0x82, VectorType == 0x5
       else if (pHead->VUMeshDesc.MeshType.NVL == true)
       {
         this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
@@ -768,6 +678,7 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
   if (currentPoint == 0)
   {
     aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+    
     aiMultiBoneMeshes.push_back(
         {(int) aiMeshes.size(), wVertex.ucBoneId1, wVertex.vVertex.w});
   }
@@ -806,5 +717,7 @@ Matrix4x4 Model::GetCoordinateMatrix(int iCoordId)
     return *(Matrix4x4 *) &coord[iCoordId].matCoord;
   }
 
+  /// Right way of doing it but the model ends up too big for blender
   return *(Matrix4x4 *) &coord[iCoordId].matLocalWorld;
+  //return *(Matrix4x4 *) &coord[iCoordId].matCoord;
 }

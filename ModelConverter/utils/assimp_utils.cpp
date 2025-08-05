@@ -125,9 +125,13 @@ void ExportScene(std::filesystem::path exportFolder, const std::string& format, 
     {
         extension = "dae";
     }
-    if (format == "gltf2")
+    else if (format == "gltf2")
     {
         extension = "gltf";
+    }
+    else if (format == "obj")
+    {
+        extension = "obj";
     }
 
     auto result = exporter.Export(scene, format, (exportFolder.replace_extension(extension)).string(), exporterOptions);

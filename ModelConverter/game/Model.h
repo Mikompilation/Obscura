@@ -38,6 +38,7 @@ private:
     std::vector<aiNode*> aiNodes;
     std::vector<aiMaterial*> aiMaterials;
     std::vector<aiTexture*> aiTextures;
+    std::vector<aiBone*> Bones;
 
     void ConvertToNodeBinaryTree();
     void ReadTextures();
