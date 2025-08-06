@@ -17,6 +17,6 @@ void initializeParentVectorInfo(SGDFILEHEADER* pSGDHead);
 
 void initializeSGDProcUnitHeader(SGDFILEHEADER* pSGDHead);
 
-void MappingVertexList(_VERTEXLIST* param_1, SGDVECTORINFO* param_2);
+void MappingVertexList(_VERTEXLIST *pVL, SGDVECTORINFO *pVectorInfo);
 
 #endif //FATALSTACK_SGD_H

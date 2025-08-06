@@ -16,5 +16,6 @@ aiMaterial* CreateNewMaterial(std::filesystem::path exportFolder, const std::str
 void ExportScene(std::filesystem::path exportFolder, const std::string& format, aiScene *scene, int exporterOptions);
 void CreateBone(aiMesh *mesh, Matrix4x4 *mat, const aiString& name);
 void SetupMeshFace(aiMesh* currentMesh, int currPointIndex);
+void BuildNodeTree(std::vector<aiNode*> aiNodes);
 
 #endif //OBSCURA_ASSIMP_UTILS_H

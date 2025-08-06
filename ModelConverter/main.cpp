@@ -10,7 +10,11 @@ int main(int argc, const char *argv[])
 
   InitLogging();
 
-  DisplayFF2Model(argv[1]);
+  for (int i = 1; i < argc; ++i)
+  {
+    DisplayFF2Model(argv[i]);
+  }
+  
 
   return 0;
 }

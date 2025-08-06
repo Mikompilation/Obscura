@@ -1,4 +1,5 @@
 #include "sgd.h"
+#include "utils/utility.h"
 #include <stdio.h>
 
 bool isValidSGDFile(SGDFILEHEADER* pSGDHead)
@@ -25,7 +26,7 @@ void initializeSGDCoordinate(SGDFILEHEADER* pSGDHead)
 		/* Since it is the first element, it does not have a parent */
 		if (j < 0)
 		{
-            GetCoordinatePtr(pSGDHead)[i].pParent = 0x0;
+            GetCoordinatePtr(pSGDHead)[i].pParent = -1;
 		}
 		else if (GetCoordinatePtr(pSGDHead)[i].pParent < pSGDHead->pCoord)
 		{
@@ -96,14 +97,16 @@ void initializeParentVectorInfo(SGDFILEHEADER* pSGDHead)
 	{
 		return;
 	}
+     
 
-	MappingVertexList(pSGDHead->pVectorInfo->aAddress[2].pVertexList, pSGDHead->pVectorInfo);
-
-	MappingVertexList(
-		(_VERTEXLIST*)(pSGDHead->pVectorInfo->aAddress[2].pVertexList->aList + pSGDHead->pVectorInfo->aAddress[2].
-		                                                                       pVertexList->iNumList),
-		pSGDHead->pVectorInfo);
-     */
+    auto pVectorInfo = GetVectorInfoPtr(pSGDHead);
+    _VERTEXLIST *p_Var5 = RelOffsetToPtr<_VERTEXLIST>(pSGDHead, pVectorInfo->aAddress[SVA_WEIGHTED].pVertexList);
+    
+    
+	MappingVertexList(p_Var5, pVectorInfo);
+	MappingVertexList((_VERTEXLIST *) (&p_Var5->aList[p_Var5->iNumList]), pVectorInfo);
+	
+    */ 
 }
 
 void initializeSGDProcUnitHeader(SGDFILEHEADER* pSGDHead)
@@ -212,6 +215,24 @@ void sgdRemap(SGDFILEHEADER* pSGDHead)
 	// void SgSortUnitPrim(SGDPROCUNITHEADER *param_1)
 }
 
-void MappingVertexList(_VERTEXLIST* vertexList, SGDVECTORINFO* vectorInfo)
+void MappingVertexList(_VERTEXLIST *pVL, SGDVECTORINFO *pVectorInfo)
 {
+  int size = 0;
+  int vnnum = pVL->iNumList;
+  int i = 0;
+  
+  if (0 < vnnum) 
+  {
+    unsigned short *usNumVector = &pVL->aList[0].usNumVector;
+    unsigned short *vOff = &pVL->aList[0].vOff;
+
+    do
+    {
+      *vOff = (unsigned short)size;
+      size += *(int*)usNumVector;
+      usNumVector += 4;
+      vOff += 4;
+      i++;
+    } while (i < vnnum);
+  }
 }

@@ -85,23 +85,13 @@ void Model::ConvertToNodeBinaryTree()
 {
   this->scene->mRootNode = nullptr;
   
-  // Find the root node (has no parent)
-  for (auto node : aiNodes)
-  {
-    if (node->mParent == nullptr)
-    {
-      this->scene->mRootNode = node;
-      break;
-    }
-  }
-
   for (size_t i = 0; i < aiNodes.size(); i++)
   {
     aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
     aiNodes[i]->mMeshes = aiMeshesIndex[i].empty()
                               ? nullptr
                               : aiMeshesIndex[i].data();
-
+    
     // Link children
     std::vector<aiNode *> children;
     for (auto j = 0; j < aiNodes.size(); j++)
@@ -119,7 +109,18 @@ void Model::ConvertToNodeBinaryTree()
       aiNodes[i]->mChildren[j] = children[j];
     }
   }
-
+  
+  // Find the root node (has no parent)
+  for (auto node : aiNodes)
+  {
+    if (node->mParent == nullptr)
+    {
+      this->scene->mRootNode = node;
+      //this->scene->mRootNode->mParent = nullptr;
+      break;
+    }
+  }
+  
   // Rewrite bone assignments per mesh
   for (size_t meshIndex = 0; meshIndex < aiMeshes.size(); ++meshIndex)
   {
@@ -146,7 +147,7 @@ void Model::ConvertToNodeBinaryTree()
       {
         if (weight < 0.0f) continue;
 
-        boneWeightMap[boneId].push_back({static_cast<unsigned int>(vertexId), weight});
+        boneWeightMap[boneId].emplace_back(static_cast<unsigned int>(vertexId), weight);
       }
     }
 
@@ -162,6 +163,7 @@ void Model::ConvertToNodeBinaryTree()
       bone->mName = aiNodes[boneId]->mName;
       
       auto boneNode = aiNodes[boneId];
+      bone->mNode = boneNode;
       aiMatrix4x4 globalTransform = GetGlobalTransform(boneNode);
       bone->mOffsetMatrix  = globalTransform.Inverse();
 
@@ -423,6 +425,7 @@ void Model::HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead)
 
 void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
 {
+  return;
   auto pTRI2HeadTop =
       RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
   auto rTexDesc = &pHead->TexDesc;
@@ -505,7 +508,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
     {
       Vector3 v {};
       Vector3 n {};
-
+      
       /// MeshType == iMT_2
       if (pHead->VUMeshDesc.ucMeshType == iMT_2)
       {
@@ -546,6 +549,17 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
 
       currentMesh->mVertices[currPointIndex] = {v.x, v.y, v.z};
       currentMesh->mNormals[currPointIndex] = {n.x, n.y, n.z};
+      
+      if (pHead->VUMeshDesc.MeshType.VTYPE != SVA_WEIGHTED)
+      {
+        int meshIdx = aiMeshes.size();
+        if (vertexBoneWeights.find(meshIdx) == vertexBoneWeights.end())
+        {
+          vertexBoneWeights[meshIdx].resize(currentMesh->mNumVertices);
+        }
+        
+        vertexBoneWeights[meshIdx][currPointIndex].emplace_back(this->sgdCoordinate->iCoordId0, 1.0f);
+      }
 
       if (pHead->VUMeshDesc.MeshType.TEX == true)
       {
@@ -619,45 +633,48 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
       sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
   const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(
       sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
+  
+  const auto vList = RelOffsetToPtr<_VERTEXLIST>(
+      sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pVertexList);
+  
 
   auto wVertex = pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
 
   auto v0 = Vector3Transform({wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z}, this->GetCoordinateMatrix(wVertex.ucBoneId0));
   auto v1 = Vector3Transform(wVertex.aui,this->GetCoordinateMatrix(wVertex.ucBoneId1));
+  programLogger->info("Bone0: {}, Bone1: {}", wVertex.ucBoneId0, wVertex.ucBoneId1);
   
   //auto v0 = Vector3{wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z};
   //auto v1 = wVertex.aui;
 
-  auto w1 = 255 - wVertex.vVertex.w;
+  auto w1 = (255 - wVertex.vVertex.w) / 255;
+  auto w2 = wVertex.vVertex.w / 255;
 
-  vertex = (v0 * (wVertex.vVertex.w / 255)) + (v1 * (w1 / 255));
+  vertex = (v0 * w2) + (v1 * w1);
 
   auto n = pWeightedNormal3[pVUVNDataWeighted3[meshIndex].pNormal];
 
   normal = {n.x, n.y, n.z};
 
+  int meshIdx = aiMeshes.size();
   // Assign bone weights
-  
   if (currentPoint == 0)
   {
-    aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+    aiMeshesIndex[wVertex.ucBoneId0].push_back(meshIdx);
   }
-  int meshIdx = aiMeshes.size();
+  
   if (vertexBoneWeights.find(meshIdx) == vertexBoneWeights.end())
   {
     vertexBoneWeights[meshIdx].resize(mesh->mNumVertices);
   }
-
-  float w2 = wVertex.vVertex.w / 255.0f;
-  float w3 = 1.0f - w2;
-
-  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId0, w2});
-  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId1, w3});
+  
+  vertexBoneWeights[meshIdx][currentPoint].emplace_back(wVertex.ucBoneId0, wVertex.vVertex.w);
+  vertexBoneWeights[meshIdx][currentPoint].emplace_back(wVertex.ucBoneId1, 1.0f -wVertex.vVertex.w);
 }
 
 void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
 {
-  auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
+  auto pVectorData = (_VECTORDATA  *) &s_ppuhVUVN[3];
   const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
 
   const auto pSVAUniqueVertex = RelOffsetToPtr<Vector4>(
@@ -667,13 +684,13 @@ void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
       sgdCurr, pVectorInfo->aAddress[SVA_UNIQUE].pvNormal);
 
   auto wVertex =
-      pSVAUniqueVertex[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
+      pSVAUniqueVertex[pVectorData[meshIndex].vIndex.uiVertexId];
 
   vertex = {wVertex.x, wVertex.y, wVertex.z};
 
   vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
 
-  auto n = pSVAUniqueNormal[pVUVNDataWeighted3[meshIndex].pNormal];
+  auto n = pSVAUniqueNormal[pVectorData[meshIndex].vIndex.uiNormalId];
 
   normal = {n.x, n.y, n.z};
 }
