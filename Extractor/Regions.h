@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <stdint.h>
 
 constexpr int GameTitleIdLength = 0xB;
 
