@@ -3,6 +3,7 @@
 #include <cstring>
 #include <fstream>
 #include <string>
+#include <stdint.h>
 #include <vector>
 
 namespace ZeroLess
