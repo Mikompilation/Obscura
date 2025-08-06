@@ -35,12 +35,18 @@ void Model::ExtractModel()
   }
 
   this->sgdCurr = this->sgdTop;
+  
+  if (!this->sgdTop)
+  {
+    programLogger->error("Failed to read model file: {}", this->exportFilename.filename().string());
+    return;
+  }
 
   if (isCharacterModel)
   {
     this->ReadTextures();
   }
-
+  
   this->CreateModelNodes();
   this->CalculateBoneTransforms();
   this->ReadSGD(mdlPak);
@@ -642,10 +648,6 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
 
   auto v0 = Vector3Transform({wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z}, this->GetCoordinateMatrix(wVertex.ucBoneId0));
   auto v1 = Vector3Transform(wVertex.aui,this->GetCoordinateMatrix(wVertex.ucBoneId1));
-  programLogger->info("Bone0: {}, Bone1: {}", wVertex.ucBoneId0, wVertex.ucBoneId1);
-  
-  //auto v0 = Vector3{wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z};
-  //auto v1 = wVertex.aui;
 
   auto w1 = (255 - wVertex.vVertex.w) / 255;
   auto w2 = wVertex.vVertex.w / 255;
