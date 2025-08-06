@@ -177,12 +177,16 @@ union SGDPROCUNITDATA
 
 struct _SGDVUVNDATA_WEIGHTEDVERTEX_3
 {
-  /*   0 */ Vector4 vVertex;
+  Vector4 vVertex;
   ///*  10 */ unsigned int aui[3];
   Vector3 aui;
-  /*  1c */ unsigned char ucBoneId0;
-  /*  1d */ unsigned char ucBoneId1;
-  /*  1e */ unsigned char auc[2];
+  
+  /// Child Bone
+  unsigned char ucBoneId0;
+  
+  /// Parent Bone
+  unsigned char ucBoneId1;
+  unsigned char auc[2];
 };
 
 struct _ONELIST
@@ -242,6 +246,7 @@ struct SGDMATERIAL
   SGDMATERIALCACHE aCache[3];
   int aiPad[8];
 };
+
 
 struct SGDVECTORADDRESS
 {
@@ -440,6 +445,23 @@ struct SGDFILEHEADER
   /// There are as many iterations as uiNumBlock
   /// Offsets of meshes
   SGDPROCUNITHEADER *apProcUnitHead[];
+#endif
+};
+
+struct _VECTORINDEX { // 0x8
+  /* 0x0 */ unsigned int uiVertexId;
+  /* 0x4 */ unsigned int uiNormalId;
+};
+
+struct _VECTORADDRESS { // 0x8
+  /* 0x0 */ sceVu0FVECTOR *pVertex;
+  /* 0x4 */ sceVu0FVECTOR *pNormal;
+};
+
+union _VECTORDATA { // 0x8
+  /* 0x0 */ _VECTORINDEX vIndex;
+#if INTPTR_MAX == INT32_MAX
+  _VECTORADDRESS vAddress;
 #endif
 };
 

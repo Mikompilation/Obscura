@@ -17,13 +17,13 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
             programLogger->info("[{:02d}] COORD", COORDINATE);
             break;
         case BOUNDING_BOX:
-            programLogger->info("[{:02d}] BoundingBox: {}", BOUNDING_BOX);
+            programLogger->info("[{:02d}] BoundingBox", BOUNDING_BOX);
             break;
         case GS_IMAGE:
-            programLogger->info("[{:02d}] GsTex: {}", GS_IMAGE);
+            programLogger->info("[{:02d}] GsTex", GS_IMAGE);
             break;
         case TRI2:
-            programLogger->info("[{:02d}] Tri2Data: {}", TRI2);
+            programLogger->info("[{:02d}] Tri2Data", TRI2);
             break;
         default:
             PrintEmptyBlock();
@@ -52,8 +52,6 @@ void PrintSGDEnding(int i) {
 }
 
 void InitLogging() {
-    spdlog::set_pattern("[%H:%M:%S] [%n] [%^%l%$] [thread %t] %v");
-
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
 
@@ -64,6 +62,7 @@ void InitLogging() {
 
     programLogger = std::make_shared<spdlog::logger>(
             PROGRAM_LOGGER, begin(sinks), end(sinks));
+    programLogger->set_pattern("[%H:%M:%S] [%n] [%^%l%$] [thread %t] %v");
     programLogger->info("Setting up loggers");
 
     spdlog::register_logger(programLogger);

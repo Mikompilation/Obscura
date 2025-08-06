@@ -9,13 +9,6 @@
 #include <unordered_map>
 #include <vector>
 
-struct MultiBoneMesh
-{
-    int meshIndex;
-    int boneIndex;
-    float weight;
-};
-
 class Model {
 public:
     Model(std::filesystem::path filename);
@@ -36,7 +29,6 @@ private:
     std::vector<aiMesh*> aiMeshes;
     std::unordered_map<int, std::vector<std::vector<std::pair<int, float>>>> vertexBoneWeights;
     std::vector<std::vector<unsigned int>> aiMeshesIndex;
-    std::vector<MultiBoneMesh> aiMultiBoneMeshes;
     std::vector<aiNode*> aiNodes;
     std::vector<aiMaterial*> aiMaterials;
     std::vector<aiTexture*> aiTextures;

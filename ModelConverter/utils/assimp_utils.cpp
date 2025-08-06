@@ -184,3 +184,28 @@ void SetupMeshFace(aiMesh* currentMesh, int currPointIndex)
         currentMesh->mFaces[currPointIndex].mIndices[2] = currPointIndex + 2;
     }
 }
+
+void BuildNodeTree(std::vector<aiNode*> aiNodes)
+{
+  //for (size_t i = 0; i < aiNodes.size(); i++)
+  //{
+  //  aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
+  //  aiNodes[i]->mMeshes = aiMeshesIndex[i].empty() ? nullptr: aiMeshesIndex[i].data();
+  //  
+  //  // Link children
+  //  std::vector<aiNode *> children;
+  //  for (auto j = 0; j < aiNodes.size(); j++)
+  //  {
+  //    if (aiNodes[j]->mParent == aiNodes[i] && j != i)
+  //    {
+  //      children.push_back(aiNodes[j]);
+  //    }
+  //  }
+  //  aiNodes[i]->mNumChildren = children.size();
+  //  aiNodes[i]->mChildren = children.empty() ? nullptr : new aiNode *[children.size()];
+  //  for (size_t j = 0; j < children.size(); j++)
+  //  {
+  //    aiNodes[i]->mChildren[j] = children[j];
+  //  }
+  //}
+}
