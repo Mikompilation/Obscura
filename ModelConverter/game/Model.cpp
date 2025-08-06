@@ -1,546 +1,709 @@
 #include "Model.h"
-#include "utils/assimp_utils.h"
-#include "packfile.h"
-#include "utils/utility.h"
-#include "render/tim2.h"
-#include "utils/logging.h"
-#include "gra3dSGDData.h"
-#include "assimp/postprocess.h"
 #include "GsTexture.h"
+#include "assimp/postprocess.h"
+#include "gra3dSGDData.h"
+#include "packfile.h"
+#include "render/tim2.h"
+#include "utils/assimp_utils.h"
+#include "utils/logging.h"
+#include "utils/utility.h"
 
 Model::Model(std::filesystem::path filename)
 {
-    this->pakFile = (PK2_HEAD *) ReadFullFile(filename);
-    this->scene = new aiScene();
-    this->isCharacterModel = filename.extension() == ".mdl";
-    this->exportFolder = std::filesystem::current_path() / filename.filename().replace_extension("");
-    this->exportFilename = filename.filename().replace_extension(".dae").filename();
+  this->pakFile = (PK2_HEAD *) ReadFullFile(filename);
+  this->scene = new aiScene();
+  this->isCharacterModel = filename.extension() == ".mdl";
+  this->exportFolder = std::filesystem::current_path()
+                       / filename.filename().replace_extension("");
+  this->exportFilename =
+      filename.filename().replace_extension(".dae").filename();
 
-    std::filesystem::create_directories(exportFolder);
+  std::filesystem::create_directories(exportFolder);
 }
 
 void Model::ExtractModel()
 {
-    auto mdlPak = (PK2_HEAD *) GetFileInPak(this->pakFile, 0);
+  auto mdlPak = (PK2_HEAD *) GetFileInPak(this->pakFile, 0);
 
-    if (!isCharacterModel)
-    {
-        this->sgdTop = (SGDFILEHEADER *) mdlPak;
-    }
-    else
-    {
-        this->sgdTop = (SGDFILEHEADER *) GetFileInPak(mdlPak, 0);
-    }
+  if (!isCharacterModel)
+  {
+    this->sgdTop = (SGDFILEHEADER *) mdlPak;
+  }
+  else
+  {
+    this->sgdTop = (SGDFILEHEADER *) GetFileInPak(mdlPak, 0);
+  }
 
-    this->sgdCurr = this->sgdTop;
+  this->sgdCurr = this->sgdTop;
 
-    if (isCharacterModel)
-    {
-        this->ReadTextures();
-    }
+  if (isCharacterModel)
+  {
+    this->ReadTextures();
+  }
 
-    this->CreateModelNodes();
-    this->CalculateBoneTransforms();
-    this->ReadSGD(mdlPak);
-    this->BuildScene();
+  this->CreateModelNodes();
+  this->CalculateBoneTransforms();
+  this->ReadSGD(mdlPak);
+  this->BuildScene();
 
-    auto exporterOptions = aiProcess_ValidateDataStructure | aiProcess_EmbedTextures;
+  auto exporterOptions =
+      aiProcess_ValidateDataStructure | aiProcess_EmbedTextures;
 
-    if (!this->isCharacterModel)
-    {
-        exporterOptions |= aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_Debone;
-    }
-    else
-    {
-        exporterOptions |= aiProcess_PopulateArmatureData;
-    }
+  if (!this->isCharacterModel)
+  {
+    exporterOptions |=
+        aiProcess_LimitBoneWeights | aiProcess_Triangulate
+        | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices
+        | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes
+        | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
+  }
+  else
+  {
+    exporterOptions |=
+        aiProcess_LimitBoneWeights | aiProcess_Triangulate
+        | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices
+        | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes
+        | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
+  }
 
-    ExportScene(exportFolder / this->exportFilename, "gltf2", scene, exporterOptions);
+  ExportScene(exportFolder / this->exportFilename, "gltf2", scene,
+              0);
 }
 
 void Model::BuildScene()
 {
-    this->ConvertToNodeBinaryTree();
-    this->scene->mNumMeshes = this->aiMeshes.size();
-    this->scene->mMeshes = this->aiMeshes.data();
-    this->scene->mNumMaterials = this->aiMaterials.size();
-    this->scene->mMaterials = this->aiMaterials.data();
-    this->scene->mNumTextures = this->aiTextures.size();
-    this->scene->mTextures = this->aiTextures.data();
+  this->ConvertToNodeBinaryTree();
+  this->scene->mNumMeshes = this->aiMeshes.size();
+  this->scene->mMeshes = this->aiMeshes.data();
+  this->scene->mNumMaterials = this->aiMaterials.size();
+  this->scene->mMaterials = this->aiMaterials.data();
+  this->scene->mNumTextures = this->aiTextures.size();
+  this->scene->mTextures = this->aiTextures.data();
 }
 
 void Model::ConvertToNodeBinaryTree()
 {
-    this->scene->mRootNode = aiNodes[0];
-
-    for (auto i = 0; i < aiNodes.size(); i++)
+  this->scene->mRootNode = nullptr;
+  
+  // Find the root node (has no parent)
+  for (auto node : aiNodes)
+  {
+    if (node->mParent == nullptr)
     {
-        aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
-        aiNodes[i]->mMeshes = aiMeshesIndex[i].data();
-
-        std::vector<aiNode*> children;
-        for (auto j = 0; j < aiNodes.size(); j++)
-        {
-            if (aiNodes[j]->mParent == aiNodes[i] && j != i)
-            {
-                children.push_back(aiNodes[j]);
-            }
-        }
-
-        aiNodes[i]->mNumChildren = children.size();
-        aiNodes[i]->mChildren = new aiNode*[children.size()];
-
-        for (auto j = 0; j < children.size(); j++)
-        {
-            aiNodes[i]->mChildren[j] = children[j];
-        }
-
-        for(auto m : aiMeshesIndex[i])
-        {
-            if (!this->isCharacterModel)
-            {
-                break;
-            }
-
-            if (aiMeshes[m]->mBones != nullptr)
-            {
-                continue;
-            }
-
-            auto coordinateMatrix = this->GetCoordinateMatrix(i);
-            CreateBone(aiMeshes[m], &coordinateMatrix, aiNodes[i]->mName);
-        }
+      this->scene->mRootNode = node;
+      break;
     }
+  }
+
+  for (size_t i = 0; i < aiNodes.size(); i++)
+  {
+    aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
+    aiNodes[i]->mMeshes = aiMeshesIndex[i].empty()
+                              ? nullptr
+                              : aiMeshesIndex[i].data();
+
+    // Link children
+    std::vector<aiNode *> children;
+    for (auto j = 0; j < aiNodes.size(); j++)
+    {
+      if (aiNodes[j]->mParent == aiNodes[i] && j != i)
+      {
+        children.push_back(aiNodes[j]);
+      }
+    }
+
+    aiNodes[i]->mNumChildren = children.size();
+    aiNodes[i]->mChildren = children.empty() ? nullptr : new aiNode *[children.size()];
+    for (size_t j = 0; j < children.size(); j++)
+    {
+      aiNodes[i]->mChildren[j] = children[j];
+    }
+  }
+
+  // Rewrite bone assignments per mesh
+  for (size_t meshIndex = 0; meshIndex < aiMeshes.size(); ++meshIndex)
+  {
+    aiMesh *mesh = aiMeshes[meshIndex];
+
+    if (!this->isCharacterModel)
+      continue;
+
+    // Prepare bone weight map: boneId -> list of (vertexId, weight)
+    std::unordered_map<int, std::vector<aiVertexWeight>> boneWeightMap;
+
+    // Assume mesh stores this data somewhere — your logic must track per-vertex bone influences
+    // Example: Store it while constructing the mesh in HandleWeightedMesh:
+    //    vertexBoneWeights[meshIndex][vertexIndex] = {{bone0, w0}, {bone1, w1}};
+    auto it = vertexBoneWeights.find(meshIndex);
+    if (it == vertexBoneWeights.end())
+      continue;
+
+    const auto &perVertexWeights = it->second;
+
+    for (size_t vertexId = 0; vertexId < perVertexWeights.size(); ++vertexId)
+    {
+      for (const auto &[boneId, weight] : perVertexWeights[vertexId])
+      {
+        if (weight < 0.0f) continue;
+
+        boneWeightMap[boneId].push_back({static_cast<unsigned int>(vertexId), weight});
+      }
+    }
+
+    // Assign bones to mesh
+    mesh->mNumBones = boneWeightMap.size();
+    mesh->mBones = new aiBone *[mesh->mNumBones];
+
+    int boneCounter = 0;
+    for (const auto &[boneId, weights] : boneWeightMap)
+    {
+      auto *bone = new aiBone();
+
+      bone->mName = aiNodes[boneId]->mName;
+      
+      auto boneNode = aiNodes[boneId];
+      aiMatrix4x4 globalTransform = GetGlobalTransform(boneNode);
+      bone->mOffsetMatrix  = globalTransform.Inverse();
+
+      bone->mNumWeights = weights.size();
+      bone->mWeights = new aiVertexWeight[bone->mNumWeights];
+
+      for (size_t w = 0; w < weights.size(); ++w)
+      {
+        bone->mWeights[w] = weights[w];
+      }
+
+      mesh->mBones[boneCounter++] = bone;
+    }
+  }
 }
 
 void Model::ReadTextures()
 {
-    if (pakFile->pack_num <= 1)
+  if (pakFile->pack_num <= 1)
+  {
+    return;
+  }
+
+  auto texturePak = (PK2_HEAD *) GetFileInPak(pakFile, 1);
+
+  if (!this->isCharacterModel)
+  {
+    texturePak = (PK2_HEAD *) Pk2GetAddr(pakFile, 1);
+  }
+
+  for (auto i = 0; i < texturePak->pack_num; i++)
+  {
+    auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
+
+    if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0
+        || !Tim2CheckFileHeader(tim2))
     {
-        return;
+      programLogger->critical("Found broken model with invalid textures");
+      continue;
     }
 
-    auto texturePak = (PK2_HEAD *) GetFileInPak(pakFile, 1);
+    auto ph = Tim2GetPictureHeader(tim2, 0);
 
-    if (!this->isCharacterModel) {
-        texturePak = (PK2_HEAD *) Pk2GetAddr(pakFile, 1);
-    }
-
-    for (auto i = 0; i < texturePak->pack_num; i++) {
-        auto tim2 = (TIM2_FILEHEADER *) GetFileInPak(texturePak, i);
-
-        if (tim2 == nullptr || ((int64_t) tim2 & 0xf) != 0 || !Tim2CheckFileHeader(tim2)) {
-            programLogger->critical("Found broken model with invalid textures");
-            continue;
-        }
-
-        auto ph = Tim2GetPictureHeader(tim2, 0);
-
-        auto convertedTim2 = LoadTim2Texture(tim2);
-        auto img = CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height, convertedTim2->image, ph->GsTex0.TBP0);
-        textures.emplace_back(img);
-    }
+    auto convertedTim2 = LoadTim2Texture(tim2);
+    auto img =
+        CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height,
+                                 convertedTim2->image, ph->GsTex0.TBP0);
+    textures.emplace_back(img);
+  }
 }
 
-int Model::FindMaterialIndex(SGDPROCUNITDATA *pProcData) {
-    auto pMaterial = GetMaterialPtr(this->sgdCurr, this->sgdMaterial->iMaterialIndex);
-    auto materialName = GetMaterialStrName(pMaterial);
+int Model::FindMaterialIndex(SGDPROCUNITDATA *pProcData)
+{
+  auto pMaterial =
+      GetMaterialPtr(this->sgdCurr, this->sgdMaterial->iMaterialIndex);
+  auto materialName = GetMaterialStrName(pMaterial);
 
-    int matIndex = -1;
-    auto currentMaterial = FindMaterial(this->aiMaterials, materialName, &matIndex);
+  int matIndex = -1;
+  auto currentMaterial =
+      FindMaterial(this->aiMaterials, materialName, &matIndex);
 
-    if (currentMaterial == nullptr)
-    {
-        matIndex = this->ReadTex0TextureIndex(pProcData, materialName);
-    }
+  if (currentMaterial == nullptr)
+  {
+    matIndex = this->ReadTex0TextureIndex(pProcData, materialName);
+  }
 
-    return matIndex;
+  return matIndex;
 }
 
-int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData, std::string materialName) {
-    auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
-    auto matIndex = this->aiMaterials.size();
-    Texture* t = nullptr;
+int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
+                                std::string materialName)
+{
+  auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
+  auto matIndex = this->aiMaterials.size();
+  Texture *t = nullptr;
 
-    for (auto v : textures)
+  for (auto v : textures)
+  {
+    if (v->GetAddress() == mesh_tex_reg->TBP0)
     {
-        if (v->GetAddress() == mesh_tex_reg->TBP0)
-        {
-            t = v;
-            break;
-        }
+      t = v;
+      break;
     }
+  }
 
-    if (t == nullptr && this->sgdMaterial->iMaterialIndex < this->textures.size())
-    {
-        t = this->textures[this->sgdMaterial->iMaterialIndex];
-    }
+  if (t == nullptr && this->sgdMaterial->iMaterialIndex < this->textures.size())
+  {
+    t = this->textures[this->sgdMaterial->iMaterialIndex];
+  }
 
-    auto pMaterial = GetMaterialPtr(this->sgdCurr, this->sgdMaterial->iMaterialIndex);
-    auto currentMaterial = CreateNewMaterial(this->exportFolder, materialName, t, pMaterial);
+  auto pMaterial =
+      GetMaterialPtr(this->sgdCurr, this->sgdMaterial->iMaterialIndex);
+  auto currentMaterial =
+      CreateNewMaterial(this->exportFolder, materialName, t, pMaterial);
 
-    this->aiMaterials.push_back(currentMaterial);
+  this->aiMaterials.push_back(currentMaterial);
 
-    return matIndex;
+  return matIndex;
 }
 
-SGDCOORDINATE *Model::GetCurrentCoordinate() {
-    return GetCoordinatePtr(sgdCurr) == nullptr ? GetCoordinatePtr(sgdTop)
-                                                : GetCoordinatePtr(sgdCurr);
+SGDCOORDINATE *Model::GetCurrentCoordinate()
+{
+  return GetCoordinatePtr(sgdCurr) == nullptr ? GetCoordinatePtr(sgdTop)
+                                              : GetCoordinatePtr(sgdCurr);
 }
 
 void Model::CreateModelNodes()
 {
-    for (auto i = 0; i < this->sgdTop->uiNumBlock - 1; i++)
-    {
-        this->aiMeshesIndex.emplace_back(std::vector<unsigned int>());
-        auto n = new aiNode();
-        n->mName = "Node" + std::to_string(i);
-        aiNodes.emplace_back(n);
-    }
+  for (auto i = 0; i < this->sgdTop->uiNumBlock - 1; i++)
+  {
+    this->aiMeshesIndex.emplace_back(std::vector<unsigned int>());
+    auto n = new aiNode();
+    n->mName = "Node" + std::to_string(i);
+    aiNodes.emplace_back(n);
+  }
 }
 
 void Model::CalculateBoneTransforms()
 {
-    auto coord = GetCoordinatePtr(this->sgdTop);
+  auto coord = GetCoordinatePtr(this->sgdTop);
 
-    sgdCalcBoneCoordinate(sgdTop, coord, this->sgdTop->uiNumBlock - 1);
+  sgdCalcBoneCoordinate(sgdTop, coord, this->sgdTop->uiNumBlock - 1);
 
-    for (auto i = 0; i < aiNodes.size(); i++)
+  for (auto i = 0; i < aiNodes.size(); i++)
+  {
+    this->aiNodes[i]->mParent =
+        coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
+
+    if (this->aiNodes[i]->mParent == nullptr)
     {
-        this->aiNodes[i]->mParent = coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
-
-        if (this->aiNodes[i]->mParent == nullptr)
-        {
-            this->aiNodes[i]->mTransformation = aiMatrix4x4();
-            continue;
-        }
-
-        auto matCoord = this->GetCoordinateMatrix(i);
-        auto matCoordParent = this->GetCoordinateMatrix(coord[i].pParent);
-
-        auto aiMat = aiMatrix4x4(*(aiMatrix4x4*)&matCoord);
-        auto aiMatParent = aiMatrix4x4(*(aiMatrix4x4*)&matCoordParent);
-
-        this->aiNodes[i]->mTransformation = aiMatParent.Inverse().Transpose() * aiMat.Transpose();
+      this->aiNodes[i]->mTransformation = aiMatrix4x4();
+      continue;
     }
+
+    auto matCoord = this->GetCoordinateMatrix(i);
+    auto matCoordParent = this->GetCoordinateMatrix(coord[i].pParent);
+
+    auto aiMat = aiMatrix4x4(*(aiMatrix4x4 *) &matCoord);
+    auto aiMatParent = aiMatrix4x4(*(aiMatrix4x4 *) &matCoordParent);
+
+    this->aiNodes[i]->mTransformation = aiMatParent.Inverse().Transpose() * aiMat.Transpose();
+    //this->aiNodes[i]->mTransformation = aiMatParent.Inverse() * aiMat;
+  }
 }
 
-void Model::ReadSGD(PK2_HEAD* mdlPak)
+void Model::ReadSGD(PK2_HEAD *mdlPak)
 {
-    if (!this->isCharacterModel)
-    {
-        sgdRemap(sgdCurr);
-        TraverseProcUnit(sgdCurr);
+  if (!this->isCharacterModel)
+  {
+    sgdRemap(sgdCurr);
+    TraverseProcUnit(sgdCurr);
 
-        return;
-    }
+    return;
+  }
+  
+  programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
 
-    programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
-
-    for (auto i = 0; i < mdlPak->pack_num; i++)
-    {
-        PrintSGDBeginning(i);
-        sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
-        sgdRemap(sgdCurr);
-        TraverseProcUnit(sgdCurr);
-        PrintSGDEnding(i);
-    }
+  for (auto i = 0; i < mdlPak->pack_num; i++)
+  {
+    PrintSGDBeginning(i);
+    sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
+    sgdRemap(sgdCurr);
+    TraverseProcUnit(sgdCurr);
+    PrintSGDEnding(i);
+  }
 }
 
 void Model::TraverseProcUnit(SGDFILEHEADER *sgd)
 {
-    for (int i = 0; i < sgd->uiNumBlock; i++) {
-        PrintBlockBeginning(i);
+  for (int i = 0; i < sgd->uiNumBlock; i++)
+  {
+    PrintBlockBeginning(i);
 
-        auto *pHead = GetTopProcUnitHeaderPtr(sgd, i);
+    auto *pHead = GetTopProcUnitHeaderPtr(sgd, i);
 
-        if (pHead == (SGDPROCUNITHEADER *) nullptr) {
-            PrintEmptyBlock();
-        }
-
-        while (pHead != (SGDPROCUNITHEADER *) nullptr && ((int64_t) pHead & 0xf) == 0) {
-            PrintBlockInfo(pHead, sgd);
-
-            SgSortUnitPrim(pHead);
-
-            pHead = GetNextProcUnitHeaderPtr(pHead);
-        }
-
-        PrintBlockEnding(i);
-    }
-
-    this->sgdCoordinate = nullptr;
-}
-
-void Model::SgSortUnitPrim(SGDPROCUNITHEADER *pHead) {
-    switch (pHead->iCategory) {
-        case VUVN:
-            this->HandleVUVNDataBlock(pHead);
-            break;
-        case MESH:
-            this->HandleMeshDataBlock(pHead);
-            break;
-        case MATERIAL:
-            this->HandleMaterialDataBlock(pHead);
-            break;
-        case COORDINATE:
-            this->HandleCoordinateDataBlock(pHead);
-            break;
-        case BOUNDING_BOX:
-            this->HandleBoundingBoxDataBlock(pHead);
-            break;
-        case GS_IMAGE:
-            this->HandleGsImageDataBlock(pHead);
-            break;
-        case TRI2:
-            this->HandleTri2DataBlock(pHead);
-            break;
-        default:
-            return;
-    }
-}
-
-void Model::HandleVUVNDataBlock(SGDPROCUNITHEADER *pHead) {
-    this->s_ppuhVUVN = pHead;
-}
-
-void Model::HandleMaterialDataBlock(SGDPROCUNITHEADER *pHead) {
-    this->sgdMaterial = &pHead->VUMaterialDesc;
-}
-
-void Model::HandleCoordinateDataBlock(SGDPROCUNITHEADER *pHead) {
-    this->sgdCoordinate = &pHead->CoordDesc;
-}
-
-void Model::HandleBoundingBoxDataBlock(SGDPROCUNITHEADER *pHead) {
-    //auto v4 = RelOffsetToPtr<Vector4>(pHead, 0x10);
-    //int numPts = (int)(((int)pHead->pNext - (int)v4) / 16);
-    //const auto mat = GetCurrentCoordinate()[sgdCoordintate->iCoordId0].matCoord;
-    //for (int i = 0; i < 8; i++)
-    //{
-    //    boundingBox[i] = Vector3Transform(Vector3{v4[i].x, v4[i].y, v4[i].z}, mat);
-    //}
-}
-
-void Model::HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead) {
-    auto sgdGsImage = RelOffsetToPtr<SGDGSIMAGEDESC>(&pHead[1], pHead->TexDesc.iPaddingSize);
-}
-
-void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead) {
-    auto pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
-    auto rTexDesc = &pHead->TexDesc;
-
-    for (auto i = 0; i < rTexDesc->iNumTexture; i++)
+    if (pHead == (SGDPROCUNITHEADER *) nullptr)
     {
-        this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
-
-        pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pTRI2HeadTop->gsli,
-                                                         pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+      PrintEmptyBlock();
     }
+
+    while (pHead != (SGDPROCUNITHEADER *) nullptr
+           && ((int64_t) pHead & 0xf) == 0)
+    {
+      PrintBlockInfo(pHead, sgd);
+
+      SgSortUnitPrim(pHead);
+
+      pHead = GetNextProcUnitHeaderPtr(pHead);
+    }
+
+    PrintBlockEnding(i);
+  }
+
+  this->sgdCoordinate = nullptr;
 }
 
-void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead) {
-    if (pHead->VUMeshDesc.ucMeshType == 0) {
-        return;
+void Model::SgSortUnitPrim(SGDPROCUNITHEADER *pHead)
+{
+  switch (pHead->iCategory)
+  {
+      /// Contains the vertex, normal data
+    case VUVN:
+      this->HandleVUVNDataBlock(pHead);
+      break;
+    case MESH:
+      this->HandleMeshDataBlock(pHead);
+      break;
+    case MATERIAL:
+      this->HandleMaterialDataBlock(pHead);
+      break;
+    case COORDINATE:
+      this->HandleCoordinateDataBlock(pHead);
+      break;
+    case BOUNDING_BOX:
+      this->HandleBoundingBoxDataBlock(pHead);
+      break;
+    case GS_IMAGE:
+      this->HandleGsImageDataBlock(pHead);
+      break;
+    case TRI2:
+      this->HandleTri2DataBlock(pHead);
+      break;
+    default:
+      return;
+  }
+}
+
+void Model::HandleVUVNDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  this->s_ppuhVUVN = pHead;
+}
+
+void Model::HandleMaterialDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  this->sgdMaterial = &pHead->VUMaterialDesc;
+}
+
+void Model::HandleCoordinateDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  this->sgdCoordinate = &pHead->CoordDesc;
+}
+
+void Model::HandleBoundingBoxDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  //auto v4 = RelOffsetToPtr<Vector4>(pHead, 0x10);
+  //int numPts = (int)(((int)pHead->pNext - (int)v4) / 16);
+  //const auto mat = GetCurrentCoordinate()[sgdCoordintate->iCoordId0].matCoord;
+  //for (int i = 0; i < 8; i++)
+  //{
+  //    boundingBox[i] = Vector3Transform(Vector3{v4[i].x, v4[i].y, v4[i].z}, mat);
+  //}
+}
+
+void Model::HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  auto sgdGsImage =
+      RelOffsetToPtr<SGDGSIMAGEDESC>(&pHead[1], pHead->TexDesc.iPaddingSize);
+}
+
+void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
+{
+  auto pTRI2HeadTop =
+      RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
+  auto rTexDesc = &pHead->TexDesc;
+
+  for (auto i = 0; i < rTexDesc->iNumTexture; i++)
+  {
+    this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
+
+    pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
+        &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
+  }
+}
+
+void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
+{
+  if (pHead->VUMeshDesc.ucMeshType == 0)
+  {
+    return;
+  }
+  
+  if (pHead->VUMeshDesc.ucMeshType == 0x80)
+  {
+    // This just adds a triangle below the character, probably for getting floor coordinates of the model
+    //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
+    return;
+  }
+
+  auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
+  auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
+
+  SGDVUMESHSTDATA *sgdMeshData;
+
+  auto isIMT_2 = pHead->VUMeshDesc.ucMeshType == iMT_2F
+                 || pHead->VUMeshDesc.ucMeshType == iMT_2;
+
+  if (isIMT_2)
+  {
+    sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(
+        pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
+  }
+  else
+  {
+    /// For a mesh order is SGDVUMESHPOINTNUM -> SGDVUMESHSTREGSET -> SGDVUMESHSTDATA
+    auto sgdVuMeshStRegSet =
+        (SGDVUMESHSTREGSET *) &pMeshInfo[pHead->VUMeshDesc.ucNumMesh];
+    sgdMeshData = (SGDVUMESHSTDATA *) &sgdVuMeshStRegSet->auiVifCode[3];
+  }
+
+  auto offsetVertex = 0;
+  auto matIndex = this->FindMaterialIndex(pProcData);
+
+  auto pVMCD =
+      (_SGDVUMESHCOLORDATA *) (&pHead->pNext
+                               + pProcData->VUMeshData_Preset.sOffsetToPrim);
+
+  for (auto i = 0; i < pHead->VUMeshDesc.ucNumMesh; i++)
+  {
+    if (isIMT_2)
+    {
+      pVMCD = (_SGDVUMESHCOLORDATA *) GetNextUnpackAddr((uint *) pVMCD);
     }
 
-    if (pHead->VUMeshDesc.ucMeshType == 0x80) {
-        // This just adds a triangle below the character, probably for getting floor coordinates of the model
-        //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
-        return;
+    unsigned int numPoint;
+
+    numPoint = isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
+
+    if (numPoint == 0)
+    {
+      continue;
     }
 
-    auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
-    auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
+    auto currentMesh = CreateNewMesh(numPoint, matIndex);
 
-    SGDVUMESHSTDATA *sgdMeshData;
-
-    if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
-        sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
-    }
-    else {
-        /// For a mesh order is SGDVUMESHPOINTNUM -> SGDVUMESHSTREGSET -> SGDVUMESHSTDATA
-        auto sgdVuMeshStRegSet = (SGDVUMESHSTREGSET *) &pMeshInfo[pHead->VUMeshDesc.ucNumMesh];
-        sgdMeshData = (SGDVUMESHSTDATA *) &sgdVuMeshStRegSet->auiVifCode[3];
+    if (isIMT_2)
+    {
+      currentMesh->mColors[0] = new aiColor4D[numPoint];
     }
 
-    auto offsetVertex = 0;
-    auto matIndex = this->FindMaterialIndex(pProcData);
+    for (auto currPointIndex = 0; currPointIndex < numPoint; currPointIndex++)
+    {
+      Vector3 v {};
+      Vector3 n {};
 
-    auto pVMCD = (_SGDVUMESHCOLORDATA *) (&pHead->pNext + pProcData->VUMeshData_Preset.sOffsetToPrim);
+      /// MeshType == iMT_2
+      if (pHead->VUMeshDesc.ucMeshType == iMT_2)
+      {
+        this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
 
-    for (auto i = 0; i < pHead->VUMeshDesc.ucNumMesh; i++) {
-        if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
-            pVMCD = (_SGDVUMESHCOLORDATA *) GetNextUnpackAddr((uint *) pVMCD);
-        }
+        auto color = pVMCD->avColor[currPointIndex];
+        Vector3Normalize(color);
+        currentMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z,
+                                                   0.0f};
+      }
+      /// MeshType = 0x82, VectorType == 0x5
+      else if (pHead->VUMeshDesc.MeshType.NVL == true)
+      {
+        this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
+      }
+      /// VectorType == 0x6
+      else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED)
+      {
+        this->HandleWeightedMesh(offsetVertex + currPointIndex, currPointIndex,
+                                 v, n, currentMesh);
+      }
+      /// MeshType == IMT_2F
+      else if (pHead->VUMeshDesc.MeshType.FLAT == 1
+               && pHead->VUMeshDesc.MeshType.PRE == 1)
+      {
+        this->HandleFlatMesh(offsetVertex + currPointIndex, v, n);
 
-        unsigned int numPoint;
+        auto color = pVMCD->avColor[currPointIndex];
+        Vector3Normalize(color);
+        currentMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z,
+                                                   0.0f};
+      }
+      /// VectorType == 0x6
+      else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_UNIQUE)
+      {
+        this->HandleUniqueMesh(offsetVertex + currPointIndex, v, n);
+      }
 
-        if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
-            numPoint = pVMCD->VifUnpack.NUM;
-        }
-        else {
-            numPoint = pMeshInfo[i].uiPointNum;
-        }
+      currentMesh->mVertices[currPointIndex] = {v.x, v.y, v.z};
+      currentMesh->mNormals[currPointIndex] = {n.x, n.y, n.z};
 
-        if (numPoint == 0)
+      if (pHead->VUMeshDesc.MeshType.TEX == true)
+      {
+        /// Sometimes the value is 0x1, so using the previous value seems to work
+        /// If this is removed, it break the entire texture mapping UV
+        if (((Vector2i *) (sgdMeshData->astData))[currPointIndex].y == 0x1)
         {
-            continue;
+          sgdMeshData->astData[currPointIndex].fT =
+              sgdMeshData->astData[currPointIndex - 2].fT;
         }
 
-        auto currentMesh = CreateNewMesh(numPoint, matIndex);
+        /// Need to subtract to compensate for the png loader flipping the Y-axis
+        currentMesh->mTextureCoords[0][currPointIndex] = {
+            sgdMeshData->astData[currPointIndex].fS,
+            1.0f - sgdMeshData->astData[currPointIndex].fT, 0.0f};
+      }
 
-        if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
-            currentMesh->mColors[0] = new aiColor4D[numPoint];
-        }
+      if (currPointIndex >= numPoint - 2)
+      {
+        continue;
+      }
 
-        for (auto currPointIndex = 0; currPointIndex < numPoint; currPointIndex++) {
-            Vector3 v{};
-            Vector3 n{};
-
-            /// MeshType == IMT_2
-            if (pHead->VUMeshDesc.ucMeshType == iMT_2) {
-                this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
-
-                auto color = pVMCD->avColor[currPointIndex];
-                Vector3Normalize(color);
-                currentMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z, 0.0f};
-            }
-            /// VectorType == 0x5
-            else if (pHead->VUMeshDesc.MeshType.NVL == true) {
-                this->HandleNVLMesh(offsetVertex + currPointIndex, v, n);
-            }
-            /// VectorType == 0x6
-            else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_WEIGHTED) {
-                this->HandleWeightedMesh(offsetVertex + currPointIndex, currPointIndex, v, n, currentMesh);
-            }
-            /// MeshType == IMT_2F
-            else if (pHead->VUMeshDesc.MeshType.FLAT == 1 && pHead->VUMeshDesc.MeshType.PRE == 1) {
-                this->HandleFlatMesh(offsetVertex + currPointIndex, v, n);
-
-                auto color = pVMCD->avColor[currPointIndex];
-                Vector3Normalize(color);
-                currentMesh->mColors[0][currPointIndex] = {color.x, color.y, color.z, 0.0f};
-            }
-            /// VectorType == 0x6
-            else if (pHead->VUMeshDesc.MeshType.VTYPE == SVA_UNIQUE) {
-                this->HandleUniqueMesh(offsetVertex + currPointIndex, v, n);
-            }
-
-            currentMesh->mVertices[currPointIndex] = {v.x, v.y, v.z};
-            currentMesh->mNormals[currPointIndex] = {n.x, n.y, n.z};
-
-            if (pHead->VUMeshDesc.MeshType.TEX == true) {
-                /// Sometimes the value is 0x1 so using the previous value seems to work
-                /// If this is removed, it break the entire texture mapping UV
-                if (((Vector2i *) (sgdMeshData->astData))[currPointIndex].y == 0x1) {
-                    sgdMeshData->astData[currPointIndex].fT = sgdMeshData->astData[currPointIndex - 2].fT;
-                }
-
-                /// Need to subtract to compensate for the png loader flipping the Y-axis
-                currentMesh->mTextureCoords[0][currPointIndex] = {sgdMeshData->astData[currPointIndex].fS, 1.0f - sgdMeshData->astData[currPointIndex].fT, 0.0f};
-            }
-
-            if (currPointIndex >= numPoint - 2) {
-                continue;
-            }
-
-            SetupMeshFace(currentMesh, currPointIndex);
-        }
-
-        if (pHead->VUMeshDesc.MeshType.VTYPE != SVA_WEIGHTED) {
-            aiMeshesIndex[this->sgdCoordinate->iCoordId0].push_back(aiMeshes.size());
-        }
-
-        sgdMeshData = (SGDVUMESHSTDATA*) &sgdMeshData->astData[numPoint];
-
-        if (pHead->VUMeshDesc.ucMeshType == iMT_2F || pHead->VUMeshDesc.ucMeshType == iMT_2) {
-            pVMCD = (_SGDVUMESHCOLORDATA *) &pVMCD->avColor[pVMCD->VifUnpack.NUM];
-        }
-
-        offsetVertex += numPoint;
-        aiMeshes.push_back(currentMesh);
+      SetupMeshFace(currentMesh, currPointIndex);
     }
-}
 
-void Model::HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
-    auto rVUVNData = (SGDPROCUNITDATA *) &s_ppuhVUVN[1];
-    auto vV = (Vector3 *) (rVUVNData->VUVNData_Preset.aui + (meshIndex + s_ppuhVUVN->VUVNDesc.sNumNormal) * 3 + 10);
-
-    vertex = vV[0];
-    normal = rVUVNData->VUVNData_Preset.vt2f.avNormal[meshIndex];
-    vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
-}
-
-void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
-    auto pVUVNData = (SGDPROCUNITDATA *) &s_ppuhVUVN[1];
-
-    vertex = pVUVNData->VUVNData_Preset.avt2[meshIndex].vVertex;
-    normal = pVUVNData->VUVNData_Preset.avt2[meshIndex].vNormal;
-
-    vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
-}
-
-void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex, Vector3 &normal, aiMesh* mesh) {
-    auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
-    const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
-    const auto coord = this->GetCurrentCoordinate();
-    const auto pWeightedVertex3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
-    const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
-
-    auto wVertex = pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
-
-    auto v0 = Vector3Transform(
-            {wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z},
-    this->GetCoordinateMatrix(wVertex.ucBoneId0));
-
-    auto v1 = Vector3Transform(
-            wVertex.aui, this->GetCoordinateMatrix(wVertex.ucBoneId1));
-
-    auto w1 = 255 - wVertex.vVertex.w;
-
-    vertex = (v0 * (wVertex.vVertex.w / 255)) + (v1 * (w1 / 255));
-
-    auto n = pWeightedNormal3[pVUVNDataWeighted3[meshIndex].pNormal];
-
-    normal = {n.x, n.y, n.z};
-
-    if (currentPoint == 0)
+    if (pHead->VUMeshDesc.MeshType.VTYPE != SVA_WEIGHTED)
     {
-        aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+      aiMeshesIndex[this->sgdCoordinate->iCoordId0].push_back(aiMeshes.size());
     }
-}
 
-void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal) {
-    auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
-    const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
+    sgdMeshData = (SGDVUMESHSTDATA *) &sgdMeshData->astData[numPoint];
 
-    const auto pSVAUniqueVertex = RelOffsetToPtr<Vector4>(
-            sgdCurr, pVectorInfo->aAddress[SVA_UNIQUE].pvVertex);
-
-    const auto pSVAUniqueNormal = RelOffsetToPtr<Vector4>(
-            sgdCurr, pVectorInfo->aAddress[SVA_UNIQUE].pvNormal);
-
-    auto wVertex = pSVAUniqueVertex[pVUVNDataWeighted3[meshIndex]
-            .pWeightedVertex];
-
-    vertex = {wVertex.x, wVertex.y, wVertex.z};
-
-    vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
-
-    auto n = pSVAUniqueNormal[pVUVNDataWeighted3[meshIndex].pNormal];
-
-    normal = {n.x, n.y, n.z};
-}
-
-Matrix4x4 Model::GetCoordinateMatrix(int iCoordId) {
-    const auto coord = this->GetCurrentCoordinate();
-
-    if (this->isCharacterModel)
+    if (isIMT_2)
     {
-        return *(Matrix4x4 *) &coord[iCoordId].matCoord;
+      pVMCD = (_SGDVUMESHCOLORDATA *) &pVMCD->avColor[pVMCD->VifUnpack.NUM];
     }
 
-    return *(Matrix4x4 *) &coord[iCoordId].matLocalWorld;
+    offsetVertex += numPoint;
+    aiMeshes.push_back(currentMesh);
+  }
+}
+
+void Model::HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
+{
+  auto rVUVNData = (SGDPROCUNITDATA *) &s_ppuhVUVN[1];
+  auto vV =
+      (Vector3 *) (rVUVNData->VUVNData_Preset.aui
+                   + (meshIndex + s_ppuhVUVN->VUVNDesc.sNumNormal) * 3 + 10);
+
+  vertex = vV[0];
+  normal = rVUVNData->VUVNData_Preset.vt2f.avNormal[meshIndex];
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+}
+
+void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
+{
+  auto pVUVNData = (SGDPROCUNITDATA *) &s_ppuhVUVN[1];
+
+  vertex = pVUVNData->VUVNData_Preset.avt2[meshIndex].vVertex;
+  normal = pVUVNData->VUVNData_Preset.avt2[meshIndex].vNormal;
+
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+}
+
+void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
+                               Vector3 &normal, aiMesh *mesh)
+{
+  auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
+  const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
+  const auto pWeightedVertex3 = RelOffsetToPtr<_SGDVUVNDATA_WEIGHTEDVERTEX_3>(
+      sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvVertex);
+  const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(
+      sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
+
+  auto wVertex = pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
+
+  auto v0 = Vector3Transform({wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z}, this->GetCoordinateMatrix(wVertex.ucBoneId0));
+  auto v1 = Vector3Transform(wVertex.aui,this->GetCoordinateMatrix(wVertex.ucBoneId1));
+  
+  //auto v0 = Vector3{wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z};
+  //auto v1 = wVertex.aui;
+
+  auto w1 = 255 - wVertex.vVertex.w;
+
+  vertex = (v0 * (wVertex.vVertex.w / 255)) + (v1 * (w1 / 255));
+
+  auto n = pWeightedNormal3[pVUVNDataWeighted3[meshIndex].pNormal];
+
+  normal = {n.x, n.y, n.z};
+
+  // Assign bone weights
+  
+  if (currentPoint == 0)
+  {
+    aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
+  }
+  int meshIdx = aiMeshes.size();
+  if (vertexBoneWeights.find(meshIdx) == vertexBoneWeights.end())
+  {
+    vertexBoneWeights[meshIdx].resize(mesh->mNumVertices);
+  }
+
+  float w2 = wVertex.vVertex.w / 255.0f;
+  float w3 = 1.0f - w2;
+
+  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId0, w2});
+  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId1, w3});
+}
+
+void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
+{
+  auto pVUVNDataWeighted3 = (_SGDVUVNDATA_WEIGHTED_3 *) &s_ppuhVUVN[3];
+  const auto pVectorInfo = GetVectorInfoPtr(sgdCurr);
+
+  const auto pSVAUniqueVertex = RelOffsetToPtr<Vector4>(
+      sgdCurr, pVectorInfo->aAddress[SVA_UNIQUE].pvVertex);
+
+  const auto pSVAUniqueNormal = RelOffsetToPtr<Vector4>(
+      sgdCurr, pVectorInfo->aAddress[SVA_UNIQUE].pvNormal);
+
+  auto wVertex =
+      pSVAUniqueVertex[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
+
+  vertex = {wVertex.x, wVertex.y, wVertex.z};
+
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+
+  auto n = pSVAUniqueNormal[pVUVNDataWeighted3[meshIndex].pNormal];
+
+  normal = {n.x, n.y, n.z};
+}
+
+Matrix4x4 Model::GetCoordinateMatrix(int iCoordId)
+{
+  const auto coord = this->GetCurrentCoordinate();
+  
+  if (iCoordId == -1)
+  {
+    return *(Matrix4x4 *) &coord[0].matCoord;
+  }
+
+  if (this->isCharacterModel)
+  {
+    return *(Matrix4x4 *) &coord[iCoordId].matCoord;
+  }
+
+  /// Right way of doing it but the model ends up too big for blender
+  return *(Matrix4x4 *) &coord[iCoordId].matLocalWorld;
+  //return *(Matrix4x4 *) &coord[iCoordId].matCoord;
+}
+
+aiMatrix4x4 Model::GetGlobalTransform(aiNode* node)
+{
+  aiMatrix4x4 global = node->mTransformation;
+  while (node->mParent)
+  {
+    node = node->mParent;
+    global = node->mTransformation * global;
+  }
+  return global;
 }

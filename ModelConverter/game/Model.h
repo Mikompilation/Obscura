@@ -1,12 +1,20 @@
 #pragma once
 
-#include <vector>
-#include <map>
 #include "Texture.h"
 #include "assimp/scene.h"
 #include "packfile.h"
 #include "sgd_types.h"
 #include <filesystem>
+#include <map>
+#include <unordered_map>
+#include <vector>
+
+struct MultiBoneMesh
+{
+    int meshIndex;
+    int boneIndex;
+    float weight;
+};
 
 class Model {
 public:
@@ -26,10 +34,13 @@ private:
 
     aiScene *scene;
     std::vector<aiMesh*> aiMeshes;
+    std::unordered_map<int, std::vector<std::vector<std::pair<int, float>>>> vertexBoneWeights;
     std::vector<std::vector<unsigned int>> aiMeshesIndex;
+    std::vector<MultiBoneMesh> aiMultiBoneMeshes;
     std::vector<aiNode*> aiNodes;
     std::vector<aiMaterial*> aiMaterials;
     std::vector<aiTexture*> aiTextures;
+    std::vector<aiBone*> Bones;
 
     void ConvertToNodeBinaryTree();
     void ReadTextures();
@@ -54,4 +65,5 @@ private:
     void HandleUniqueMesh(int meshIndex, Vector3& vertex, Vector3& normal);
     SGDCOORDINATE* GetCurrentCoordinate();
     Matrix4x4 GetCoordinateMatrix(int iCoordId);
+    aiMatrix4x4 GetGlobalTransform(aiNode* node);
 };

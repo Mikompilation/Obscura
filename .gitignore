@@ -46,5 +46,5 @@ cmake-build-release/
 .DS_Store
 /.vs
 /out
-
+cmake-build-debug---64bits/
 build/
