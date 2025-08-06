@@ -83,14 +83,27 @@ void Model::BuildScene()
 
 void Model::ConvertToNodeBinaryTree()
 {
-  this->scene->mRootNode = aiNodes[0];
-  for (auto i = 0; i < aiNodes.size(); i++)
+  this->scene->mRootNode = nullptr;
+  
+  // Find the root node (has no parent)
+  for (auto node : aiNodes)
+  {
+    if (node->mParent == nullptr)
+    {
+      this->scene->mRootNode = node;
+      break;
+    }
+  }
+
+  for (size_t i = 0; i < aiNodes.size(); i++)
   {
     aiNodes[i]->mNumMeshes = aiMeshesIndex[i].size();
-    aiNodes[i]->mMeshes = aiMeshesIndex[i].data();
+    aiNodes[i]->mMeshes = aiMeshesIndex[i].empty()
+                              ? nullptr
+                              : aiMeshesIndex[i].data();
 
+    // Link children
     std::vector<aiNode *> children;
-
     for (auto j = 0; j < aiNodes.size(); j++)
     {
       if (aiNodes[j]->mParent == aiNodes[i] && j != i)
@@ -100,103 +113,67 @@ void Model::ConvertToNodeBinaryTree()
     }
 
     aiNodes[i]->mNumChildren = children.size();
-    aiNodes[i]->mChildren = new aiNode *[children.size()];
-
-    for (auto j = 0; j < children.size(); j++)
+    aiNodes[i]->mChildren = children.empty() ? nullptr : new aiNode *[children.size()];
+    for (size_t j = 0; j < children.size(); j++)
     {
       aiNodes[i]->mChildren[j] = children[j];
     }
+  }
 
-    for (auto m : aiMeshesIndex[i])
+  // Rewrite bone assignments per mesh
+  for (size_t meshIndex = 0; meshIndex < aiMeshes.size(); ++meshIndex)
+  {
+    aiMesh *mesh = aiMeshes[meshIndex];
+
+    if (!this->isCharacterModel)
+      continue;
+
+    // Prepare bone weight map: boneId -> list of (vertexId, weight)
+    std::unordered_map<int, std::vector<aiVertexWeight>> boneWeightMap;
+
+    // Assume mesh stores this data somewhere — your logic must track per-vertex bone influences
+    // Example: Store it while constructing the mesh in HandleWeightedMesh:
+    //    vertexBoneWeights[meshIndex][vertexIndex] = {{bone0, w0}, {bone1, w1}};
+    auto it = vertexBoneWeights.find(meshIndex);
+    if (it == vertexBoneWeights.end())
+      continue;
+
+    const auto &perVertexWeights = it->second;
+
+    for (size_t vertexId = 0; vertexId < perVertexWeights.size(); ++vertexId)
     {
-      if (!this->isCharacterModel)
+      for (const auto &[boneId, weight] : perVertexWeights[vertexId])
       {
-        break;
-      }
+        if (weight < 0.0f) continue;
 
-      if (aiMeshes[m]->HasBones())
-      {
-        continue;
+        boneWeightMap[boneId].push_back({static_cast<unsigned int>(vertexId), weight});
       }
+    }
+
+    // Assign bones to mesh
+    mesh->mNumBones = boneWeightMap.size();
+    mesh->mBones = new aiBone *[mesh->mNumBones];
+
+    int boneCounter = 0;
+    for (const auto &[boneId, weights] : boneWeightMap)
+    {
+      auto *bone = new aiBone();
+
+      bone->mName = aiNodes[boneId]->mName;
       
-      auto extraBones = 1;
-      auto hasExtraBone = false;
-      auto extraBoneIndex = 0;
+      auto boneNode = aiNodes[boneId];
+      aiMatrix4x4 globalTransform = GetGlobalTransform(boneNode);
+      bone->mOffsetMatrix  = globalTransform.Inverse();
 
-      // Checks if it is a multi-bone mesh
-      for (; extraBoneIndex < aiMultiBoneMeshes.size(); extraBoneIndex++)
+      bone->mNumWeights = weights.size();
+      bone->mWeights = new aiVertexWeight[bone->mNumWeights];
+
+      for (size_t w = 0; w < weights.size(); ++w)
       {
-        if (aiMultiBoneMeshes[extraBoneIndex].meshIndex == m)
-        {
-          extraBones++;
-          hasExtraBone = true;
-          break;
-        }
+        bone->mWeights[w] = weights[w];
       }
 
-      aiMeshes[m]->mNumBones =
-          extraBones;//GetNumberOfParents(aiNodes[i]) + extraBones;
-      aiMeshes[m]->mBones = new aiBone *[aiMeshes[m]->mNumBones];
-
-      auto parentIdList = new int[aiMeshes[m]->mNumBones];
-      parentIdList[0] = i;
-
-      // Finds the list of parents ID for the current mesh
-      auto currentNode = aiNodes[i];
-      for (auto l = 1; l < aiMeshes[m]->mNumBones; l++)
-      {
-        if (hasExtraBone && l == aiMeshes[m]->mNumBones - 1)
-        {
-          parentIdList[l] = aiMultiBoneMeshes[extraBoneIndex].boneIndex;
-          break;
-        }
-
-        auto parentName = currentNode->mParent->mName;
-        for (auto ll = 0; ll < aiNodes.size(); ll++)
-        {
-          if (aiNodes[ll]->mName == parentName)
-          {
-            currentNode = aiNodes[ll];
-            parentIdList[l] = ll;
-            break;
-          }
-        }
-      }
-
-      for (auto k = 0; k < aiMeshes[m]->mNumBones; k++)
-      {
-        aiMeshes[m]->mBones[k] = new aiBone();
-        aiMeshes[m]->mBones[k]->mName =
-            aiString(aiNodes[parentIdList[k]]->mName);
-
-        auto coordinateMatrix = this->GetCoordinateMatrix(parentIdList[k]);
-        auto inverseBoneMatrix = aiMatrix4x4(*(aiMatrix4x4 *) &coordinateMatrix)
-                                     .Inverse()
-                                     .Transpose();
-
-        aiMeshes[m]->mBones[k]->mOffsetMatrix = inverseBoneMatrix;
-        aiMeshes[m]->mBones[k]->mNumWeights = aiMeshes[m]->mNumVertices;
-        aiMeshes[m]->mBones[k]->mWeights =
-            new aiVertexWeight[aiMeshes[m]->mNumVertices];
-
-        for (auto j = 0; j < aiMeshes[m]->mNumVertices; j++)
-        {
-          aiMeshes[m]->mBones[k]->mWeights[j].mVertexId = j;
-          aiMeshes[m]->mBones[k]->mWeights[j].mWeight = 0.0f;
-
-          if (hasExtraBone)
-          {
-            aiMeshes[m]->mBones[k]->mWeights[j].mWeight =
-                1.0f - aiMultiBoneMeshes[extraBoneIndex].weight;
-          }
-
-          if (hasExtraBone && k == aiMeshes[m]->mNumBones - 1)
-          {
-            aiMeshes[m]->mBones[k]->mWeights[j].mWeight =
-                aiMultiBoneMeshes[extraBoneIndex].weight;
-          }
-        }
-      }
+      mesh->mBones[boneCounter++] = bone;
     }
   }
 }
@@ -310,16 +287,10 @@ void Model::CalculateBoneTransforms()
 
   for (auto i = 0; i < aiNodes.size(); i++)
   {
-    
     this->aiNodes[i]->mParent =
         coord[i].pParent != -1 ? aiNodes[coord[i].pParent] : nullptr;
 
     if (this->aiNodes[i]->mParent == nullptr)
-    {
-      this->aiNodes[i]->mTransformation = aiMatrix4x4();
-      continue;
-    }
-    else
     {
       this->aiNodes[i]->mTransformation = aiMatrix4x4();
       continue;
@@ -331,8 +302,8 @@ void Model::CalculateBoneTransforms()
     auto aiMat = aiMatrix4x4(*(aiMatrix4x4 *) &matCoord);
     auto aiMatParent = aiMatrix4x4(*(aiMatrix4x4 *) &matCoordParent);
 
-    this->aiNodes[i]->mTransformation =
-        aiMatParent.Inverse().Transpose() * aiMat.Transpose();
+    this->aiNodes[i]->mTransformation = aiMatParent.Inverse().Transpose() * aiMat.Transpose();
+    //this->aiNodes[i]->mTransformation = aiMatParent.Inverse() * aiMat;
   }
 }
 
@@ -345,13 +316,7 @@ void Model::ReadSGD(PK2_HEAD *mdlPak)
 
     return;
   }
-
-  for (auto i = 0; i < mdlPak->pack_num; i++)
-  {
-    sgdCurr = (SGDFILEHEADER *) GetFileInPak(mdlPak, i);
-    sgdRemap(sgdCurr);
-    TraverseProcUnit(sgdCurr);
-  }
+  
   programLogger->info("-----  # of SGD {} -----\n", mdlPak->pack_num);
 
   for (auto i = 0; i < mdlPak->pack_num; i++)
@@ -632,8 +597,7 @@ void Model::HandleFlatMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
 
   vertex = vV[0];
   normal = rVUVNData->VUVNData_Preset.vt2f.avNormal[meshIndex];
-  vertex = Vector3Transform(
-      vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
 }
 
 void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
@@ -643,8 +607,7 @@ void Model::HandleNVLMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
   vertex = pVUVNData->VUVNData_Preset.avt2[meshIndex].vVertex;
   normal = pVUVNData->VUVNData_Preset.avt2[meshIndex].vNormal;
 
-  vertex = Vector3Transform(
-      vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
 }
 
 void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
@@ -657,15 +620,13 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
   const auto pWeightedNormal3 = RelOffsetToPtr<Vector4>(
       sgdCurr, pVectorInfo->aAddress[SVA_WEIGHTED].pvNormal);
 
-  auto wVertex =
-      pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
+  auto wVertex = pWeightedVertex3[pVUVNDataWeighted3[meshIndex].pWeightedVertex];
 
-  auto v0 = Vector3Transform(
-      {wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z},
-      this->GetCoordinateMatrix(wVertex.ucBoneId0));
-
-  auto v1 = Vector3Transform(wVertex.aui,
-                             this->GetCoordinateMatrix(wVertex.ucBoneId1));
+  auto v0 = Vector3Transform({wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z}, this->GetCoordinateMatrix(wVertex.ucBoneId0));
+  auto v1 = Vector3Transform(wVertex.aui,this->GetCoordinateMatrix(wVertex.ucBoneId1));
+  
+  //auto v0 = Vector3{wVertex.vVertex.x, wVertex.vVertex.y, wVertex.vVertex.z};
+  //auto v1 = wVertex.aui;
 
   auto w1 = 255 - wVertex.vVertex.w;
 
@@ -675,13 +636,23 @@ void Model::HandleWeightedMesh(int meshIndex, int currentPoint, Vector3 &vertex,
 
   normal = {n.x, n.y, n.z};
 
+  // Assign bone weights
+  
   if (currentPoint == 0)
   {
     aiMeshesIndex[wVertex.ucBoneId0].push_back(aiMeshes.size());
-    
-    aiMultiBoneMeshes.push_back(
-        {(int) aiMeshes.size(), wVertex.ucBoneId1, wVertex.vVertex.w});
   }
+  int meshIdx = aiMeshes.size();
+  if (vertexBoneWeights.find(meshIdx) == vertexBoneWeights.end())
+  {
+    vertexBoneWeights[meshIdx].resize(mesh->mNumVertices);
+  }
+
+  float w2 = wVertex.vVertex.w / 255.0f;
+  float w3 = 1.0f - w2;
+
+  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId0, w2});
+  vertexBoneWeights[meshIdx][currentPoint].push_back({wVertex.ucBoneId1, w3});
 }
 
 void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
@@ -700,8 +671,7 @@ void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
 
   vertex = {wVertex.x, wVertex.y, wVertex.z};
 
-  vertex = Vector3Transform(
-      vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
+  vertex = Vector3Transform(vertex, this->GetCoordinateMatrix(this->sgdCoordinate->iCoordId0));
 
   auto n = pSVAUniqueNormal[pVUVNDataWeighted3[meshIndex].pNormal];
 
@@ -711,6 +681,11 @@ void Model::HandleUniqueMesh(int meshIndex, Vector3 &vertex, Vector3 &normal)
 Matrix4x4 Model::GetCoordinateMatrix(int iCoordId)
 {
   const auto coord = this->GetCurrentCoordinate();
+  
+  if (iCoordId == -1)
+  {
+    return *(Matrix4x4 *) &coord[0].matCoord;
+  }
 
   if (this->isCharacterModel)
   {
@@ -720,4 +695,15 @@ Matrix4x4 Model::GetCoordinateMatrix(int iCoordId)
   /// Right way of doing it but the model ends up too big for blender
   return *(Matrix4x4 *) &coord[iCoordId].matLocalWorld;
   //return *(Matrix4x4 *) &coord[iCoordId].matCoord;
+}
+
+aiMatrix4x4 Model::GetGlobalTransform(aiNode* node)
+{
+  aiMatrix4x4 global = node->mTransformation;
+  while (node->mParent)
+  {
+    node = node->mParent;
+    global = node->mTransformation * global;
+  }
+  return global;
 }
