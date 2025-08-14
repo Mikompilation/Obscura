@@ -37,6 +37,12 @@ add_executable(ModelConverter
         ../third-party/stb/stb_write_image.h
         game/GsTexture.cpp
         game/GsTexture.h
+        utils/model_utils.cpp
+        utils/model_utils.h
+        Extractor/MDL.cpp
+        Extractor/MDL.h
+        game/gra3dTRI2.cpp
+        game/gra3dTRI2.h
 )
 
 target_link_libraries(ModelConverter PRIVATE spdlog assimp)

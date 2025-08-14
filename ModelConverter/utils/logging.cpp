@@ -10,14 +10,13 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
             programLogger->info("[{:02d}] MESH Type: {:#x}", MESH, pHead->VUMeshDesc.ucMeshType);
             break;
         case MATERIAL:
-            programLogger->info("----- New Sub Model Part -----");
             programLogger->info("[{:02d}] MATE Name: {}", MATERIAL, GetMaterialPtr(pSGDTop, pHead->VUMaterialDesc.pMat)->strTexName);
             break;
         case COORDINATE:
-            programLogger->info("[{:02d}] COORD", COORDINATE);
+            programLogger->info("[{:02d}] COORD: {:02d}", COORDINATE, pHead->CoordDesc.iCoordId0);
             break;
         case BOUNDING_BOX:
-            programLogger->info("[{:02d}] BoundingBox", BOUNDING_BOX);
+            programLogger->info("[{:02d}] BoundingBox: {:02d}", BOUNDING_BOX, pHead->BoundingBoxDesc.iCoordId);
             break;
         case GS_IMAGE:
             programLogger->info("[{:02d}] GsTex", GS_IMAGE);
@@ -25,14 +24,21 @@ void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER *pSGDTop) {
         case TRI2:
             programLogger->info("[{:02d}] Tri2Data", TRI2);
             break;
+        case MonotoneTRI2:
+          programLogger->info("[{:02d}] Tri2Mono", TRI2);
+          break;
         default:
-            PrintEmptyBlock();
+          PrintUnknownBlock();
             break;
     }
 }
 
 void PrintEmptyBlock() {
-    programLogger->info("-----     EMPTY     -----");
+  programLogger->info("-----     EMPTY     -----");
+}
+
+void PrintUnknownBlock() {
+  programLogger->info("-----    UNKNOWN    -----");
 }
 
 void PrintBlockBeginning(int i) {

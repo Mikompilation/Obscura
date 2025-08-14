@@ -580,7 +580,7 @@ Tim2Converted * LoadTim2Texture(TIM2_FILEHEADER *pTim2FileHeader)
 {
   auto ph = (TIM2_PICTUREHEADER *) Tim2GetPictureHeader(pTim2FileHeader, 0);
 
-  auto *texture =
+  auto texture =
       new unsigned int[static_cast<int>(ph->ImageWidth)
                        * static_cast<int>(ph->ImageHeight)];
 

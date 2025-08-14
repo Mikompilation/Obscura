@@ -8,7 +8,7 @@
 #endif
 
 template<typename T>
-T* RelOffsetToPtr(const void* ptr, const int offset)
+T* RelOffsetToPtr(const void* ptr, const int64_t offset)
 {
 #if INTPTR_MAX == INT64_MAX
     return (T*)((int64_t )ptr + offset);

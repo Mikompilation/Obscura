@@ -56,8 +56,7 @@ enum MTYPE
   iMT_2 = 0x12,
   iMT_2F = 0x32
 };
-
-enum ProcUnitType : int
+enum ProcUnitType : int 
 {
   VUVN = 0,
   MESH = 1,
@@ -65,7 +64,11 @@ enum ProcUnitType : int
   COORDINATE = 3,
   BOUNDING_BOX = 4,
   GS_IMAGE = 5,
-  TRI2 = 10
+  TRI2 = 10,
+  END = 11,
+  INVALID = 12,
+  MonotoneTRI2 = 13,
+  StackTRI2 = 14,
 };
 
 struct SGDVUMESHDATA
@@ -155,11 +158,16 @@ struct SGDTRI2FILEHEADER
   unsigned int uiVif1Code_FLUSH;
   G3DVIF1CODE_DIRECT uiVif1Code_DIRECT;
   sceGsLoadImage gsli;
+  
+  SGDTRI2FILEHEADER& operator=(const SGDTRI2FILEHEADER& rhand);
+  SGDTRI2FILEHEADER();
+  ~SGDTRI2FILEHEADER();
+  unsigned int GetTRI2Size();
 };
 
 struct SGDGSIMAGEDATA
 {
-  unsigned int auiVifCode[4];
+  G3DVIF1CODE auiVifCode[4];
   sceGifTag GT;
   unsigned char aucData[1];
 };
@@ -582,4 +590,10 @@ inline std::string GetMaterialStrName(SGDMATERIAL *pMaterial)
   materialName[12] = '\0';
 
   return std::string(materialName);
+}
+
+inline _SGDVUMESHCOLORDATA * GetVuMeshColorData(SGDPROCUNITHEADER *pHead, SGDPROCUNITDATA *pProcData)
+{
+  return (_SGDVUMESHCOLORDATA *) (&pHead->pNext
+                           + pProcData->VUMeshData_Preset.sOffsetToPrim);
 }

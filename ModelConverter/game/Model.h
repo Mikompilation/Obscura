@@ -24,6 +24,7 @@ private:
     SGDPROCUNITHEADER *s_ppuhVUVN;
     SGDCOORDINATEDESC *sgdCoordinate;
     SGDVUMATERIALDESC *sgdMaterial;
+    SGDTRI2FILEHEADER *previousTRI2FileHeader = nullptr;
 
     aiScene *scene;
     std::vector<aiMesh*> aiMeshes;

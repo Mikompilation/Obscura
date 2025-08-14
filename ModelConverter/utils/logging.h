@@ -12,6 +12,7 @@ inline std::shared_ptr<spdlog::logger> programLogger;
 
 void InitLogging();
 void PrintBlockInfo(SGDPROCUNITHEADER *pHead, SGDFILEHEADER* pSGDTop);
+void PrintUnknownBlock();
 void PrintEmptyBlock();
 void PrintBlockBeginning(int i);
 void PrintBlockEnding(int i);
