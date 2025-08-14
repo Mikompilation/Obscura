@@ -62,17 +62,17 @@ typedef struct {
 } sceGsZbuf;
 
 typedef struct {
-    unsigned long long SBP : 14;
+    unsigned long long SBP : 14; /// Source Buffer Pointer
     unsigned long long pad14 : 2;
-    unsigned long long SBW : 6;
+    unsigned long long SBW : 6; /// Source Buffer Width
     unsigned long long pad22 : 2;
-    unsigned long long SPSM : 6;
+    unsigned long long SPSM : 6; /// Source Pixel Storage Mode
     unsigned long long pad30 : 2;
-    unsigned long long DBP : 14;
+    unsigned long long DBP : 14; /// Destination Buffer Pointer (i.e., 0x100 * 256 = 0x10000 bytes into GS memory)
     unsigned long long pad46 : 2;
-    unsigned long long DBW : 6;
+    unsigned long long DBW : 6; /// Destination Buffer Width in blocks (each block = 64 pixels)
     unsigned long long pad54 : 2;
-    unsigned long long DPSM : 6;
+    unsigned long long DPSM : 6; /// Destination Pixel Storage Mode (e.g., 0x0 = PSMCT32, 32-bit color)
     unsigned long long pad62 : 2;
 } sceGsBitbltbuf;
 
@@ -89,9 +89,9 @@ typedef struct {
 } sceGsTrxpos;
 
 typedef struct {
-    unsigned long long RRW : 12;
+    unsigned long long RRW : 12; /// Rectangle Region Width
     unsigned long long pad12 : 20;
-    unsigned long long RRH : 12;
+    unsigned long long RRH : 12; /// Rectangle Region Height
     unsigned long long pad44 : 20;
 } sceGsTrxreg;
 
@@ -101,7 +101,7 @@ typedef struct {
     unsigned long long pad02 : 32;
 } sceGsTrxdir;
 
-typedef struct {
+struct sceGifTag {
     /// Repeat count (GS primitive data size)
     ///     PACKED mode NREG x NLOOP(qword)
     ///         REGLIST mode NREG x NLOOP(dword)
@@ -180,22 +180,45 @@ typedef struct {
 
     /// NOP
     unsigned long long REGS15 : 4;
-} sceGifTag;
+};
 
-typedef struct {
+struct sceGsTex0 {
+    /// TBP0 (Texture Base Pointer), Start address of texture in VRAM, in units of 64-byte blocks. The GS uses this to find the texture’s first page.
     unsigned long long TBP0 : 14;
+    
+    /// TBW (Texture Buffer Width), Width of the texture buffer in pages, where a page is 64 pixels wide for PSMCT32/PSMZ32 (32-bit formats). For other formats, the width unit changes.
     unsigned long long TBW : 6;
+    
+    /// PSM (Pixel Storage Mode), Texture pixel format: PSMCT32 (0), PSMCT24 (1), PSMCT16 (2), PSMT8 (19), PSMT4 (20), etc.
     unsigned long long PSM : 6;
+    
+    /// Texture Width, Stored as log2(width). Example: TW=8 → 2^8 = 256 pixels wide.
     unsigned long long TW : 4;
+    
+    /// Texture Height, Stored as log2(height). Example: TH=8 → 2^8 = 256 pixels tall.
     unsigned long long TH : 4;
+    
+    /// TCC (Texture Color Component), 0 = RGB, 1 = RGBA. This affects how the GS blends and modulates the texture.
     unsigned long long TCC : 1;
+    
+    /// TFX (Texture Function), How the texture combines with vertex color: 0=MODULATE, 1=DECAL, 2=HIGHLIGHT, 3=HIGHLIGHT2.
     unsigned long long TFX : 2;
+    
+    /// CBP (CLUT Base Pointer), Base address of the Color Look-Up Table (palette) in VRAM, in 64-byte blocks (used only for paletted textures like PSMT8/4).
     unsigned long long CBP : 14;
+    
+    /// CPSM (CLUT Pixel Storage Mode), Format of palette entries (usually PSMCT32 or PSMCT16).
     unsigned long long CPSM : 4;
+    
+    /// CSM (CLUT Storage Mode), 0 = CSM1 (1D palette), 1 = CSM2 (2D palette). Controls how palette entries are arranged in VRAM.
     unsigned long long CSM : 1;
+    
+    /// CSA (CLUT Entry Offset), Offset (in blocks of 16 colors) inside the CLUT. Lets you pick sub-palettes.
     unsigned long long CSA : 5;
+    
+    /// CLD (CLUT Load Control), 0 = No load, 1 = Load CLUT, 2/3 = Reserved. Used to trigger CLUT loading.
     unsigned long long CLD : 3;
-} sceGsTex0;
+};
 
 typedef struct {
     unsigned long long LCM : 1;
@@ -211,7 +234,7 @@ typedef struct {
     unsigned long long pad44 : 20;
 } sceGsTex1;
 
-typedef struct {
+struct sceGsLoadImage{
     sceGifTag giftag0;
     sceGsBitbltbuf bitbltbuf;
     unsigned long long bitbltbufaddr;
@@ -222,7 +245,7 @@ typedef struct {
     sceGsTrxdir trxdir;
     unsigned long long trxdiraddr;
     sceGifTag giftag1;
-} sceGsLoadImage;
+};
 
 enum VIFCodeType : unsigned int
 {

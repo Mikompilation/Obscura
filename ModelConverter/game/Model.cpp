@@ -2,10 +2,12 @@
 #include "GsTexture.h"
 #include "assimp/postprocess.h"
 #include "gra3dSGDData.h"
+#include "gra3dTRI2.h"
 #include "packfile.h"
 #include "render/tim2.h"
 #include "utils/assimp_utils.h"
 #include "utils/logging.h"
+#include "utils/model_utils.h"
 #include "utils/utility.h"
 
 Model::Model(std::filesystem::path filename)
@@ -16,7 +18,7 @@ Model::Model(std::filesystem::path filename)
   this->exportFolder = std::filesystem::current_path()
                        / filename.filename().replace_extension("");
   this->exportFilename =
-      filename.filename().replace_extension(".dae").filename();
+      filename.filename();
 
   std::filesystem::create_directories(exportFolder);
 }
@@ -52,28 +54,20 @@ void Model::ExtractModel()
   this->ReadSGD(mdlPak);
   this->BuildScene();
 
-  auto exporterOptions =
+  auto exporterOptions =0;
       aiProcess_ValidateDataStructure | aiProcess_EmbedTextures;
 
   if (!this->isCharacterModel)
   {
-    exporterOptions |=
-        aiProcess_LimitBoneWeights | aiProcess_Triangulate
-        | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices
-        | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes
-        | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
+    exporterOptions |= 0;
   }
   else
   {
-    exporterOptions |=
-        aiProcess_LimitBoneWeights | aiProcess_Triangulate
-        | aiProcess_PopulateArmatureData | aiProcess_JoinIdenticalVertices
-        | aiProcess_FixInfacingNormals | aiProcess_GenBoundingBoxes
-        | aiProcess_GenSmoothNormals | aiProcess_ForceGenNormals;
+    exporterOptions |= 0;
   }
 
-  ExportScene(exportFolder / this->exportFilename, "gltf2", scene,
-              0);
+  ExportScene(exportFolder / this->exportFilename, "gltf2", scene,exporterOptions);
+  ExportScene(exportFolder / this->exportFilename, "obj", scene,exporterOptions);
 }
 
 void Model::BuildScene()
@@ -243,11 +237,24 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
                                 std::string materialName)
 {
   auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
+  
+  if (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1)
+  {
+    mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
+  }
+  
+  programLogger->info("Texture Info: TB0 {:#x}", (int)mesh_tex_reg->TBP0);
+  
   auto matIndex = this->aiMaterials.size();
   Texture *t = nullptr;
 
   for (auto v : textures)
   {
+    if (v == nullptr)
+    {
+      continue;
+    }
+    
     if (v->GetAddress() == mesh_tex_reg->TBP0)
     {
       t = v;
@@ -348,6 +355,7 @@ void Model::TraverseProcUnit(SGDFILEHEADER *sgd)
     if (pHead == (SGDPROCUNITHEADER *) nullptr)
     {
       PrintEmptyBlock();
+      continue;
     }
 
     while (pHead != (SGDPROCUNITHEADER *) nullptr
@@ -370,7 +378,7 @@ void Model::SgSortUnitPrim(SGDPROCUNITHEADER *pHead)
 {
   switch (pHead->iCategory)
   {
-      /// Contains the vertex, normal data
+    /// Contains the vertex, normal data
     case VUVN:
       this->HandleVUVNDataBlock(pHead);
       break;
@@ -390,6 +398,7 @@ void Model::SgSortUnitPrim(SGDPROCUNITHEADER *pHead)
       this->HandleGsImageDataBlock(pHead);
       break;
     case TRI2:
+    //case MonotoneTRI2:
       this->HandleTri2DataBlock(pHead);
       break;
     default:
@@ -431,15 +440,16 @@ void Model::HandleGsImageDataBlock(SGDPROCUNITHEADER *pHead)
 
 void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
 {
-  return;
-  auto pTRI2HeadTop =
-      RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
+  auto pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(&pHead[1], pHead->TexDesc.iPaddingSize);
   auto rTexDesc = &pHead->TexDesc;
+  
+  this->previousTRI2FileHeader = pTRI2HeadTop;
+   
+  //rTexDesc->iNumTexture = gra3dGenerateTRI2FileFromVRAM(pTRI2HeadTop, &TRI2SizeData);
 
   for (auto i = 0; i < rTexDesc->iNumTexture; i++)
   {
     this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
-
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
   }
@@ -447,45 +457,23 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
 
 void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
 {
-  if (pHead->VUMeshDesc.ucMeshType == 0)
+  if (!ShouldParseMesh(pHead))
   {
-    return;
-  }
-  
-  if (pHead->VUMeshDesc.ucMeshType == 0x80)
-  {
-    // This just adds a triangle below the character, probably for getting floor coordinates of the model
-    //pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[2];
     return;
   }
 
   auto pProcData = (SGDPROCUNITDATA *) &pHead[1];
   auto *pMeshInfo = (SGDVUMESHPOINTNUM *) &pHead[4];
 
-  SGDVUMESHSTDATA *sgdMeshData;
-
   auto isIMT_2 = pHead->VUMeshDesc.ucMeshType == iMT_2F
                  || pHead->VUMeshDesc.ucMeshType == iMT_2;
-
-  if (isIMT_2)
-  {
-    sgdMeshData = RelOffsetToPtr<SGDVUMESHSTDATA>(
-        pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
-  }
-  else
-  {
-    /// For a mesh order is SGDVUMESHPOINTNUM -> SGDVUMESHSTREGSET -> SGDVUMESHSTDATA
-    auto sgdVuMeshStRegSet =
-        (SGDVUMESHSTREGSET *) &pMeshInfo[pHead->VUMeshDesc.ucNumMesh];
-    sgdMeshData = (SGDVUMESHSTDATA *) &sgdVuMeshStRegSet->auiVifCode[3];
-  }
+  
+  SGDVUMESHSTDATA *sgdMeshData = GetMeshSTData(pHead, pProcData, pMeshInfo, isIMT_2);
 
   auto offsetVertex = 0;
   auto matIndex = this->FindMaterialIndex(pProcData);
 
-  auto pVMCD =
-      (_SGDVUMESHCOLORDATA *) (&pHead->pNext
-                               + pProcData->VUMeshData_Preset.sOffsetToPrim);
+  auto pVMCD = GetVuMeshColorData(pHead, pProcData);
 
   for (auto i = 0; i < pHead->VUMeshDesc.ucNumMesh; i++)
   {
@@ -494,9 +482,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
       pVMCD = (_SGDVUMESHCOLORDATA *) GetNextUnpackAddr((uint *) pVMCD);
     }
 
-    unsigned int numPoint;
-
-    numPoint = isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
+    unsigned int numPoint = isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
 
     if (numPoint == 0)
     {
@@ -567,21 +553,7 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
         vertexBoneWeights[meshIdx][currPointIndex].emplace_back(this->sgdCoordinate->iCoordId0, 1.0f);
       }
 
-      if (pHead->VUMeshDesc.MeshType.TEX == true)
-      {
-        /// Sometimes the value is 0x1, so using the previous value seems to work
-        /// If this is removed, it break the entire texture mapping UV
-        if (((Vector2i *) (sgdMeshData->astData))[currPointIndex].y == 0x1)
-        {
-          sgdMeshData->astData[currPointIndex].fT =
-              sgdMeshData->astData[currPointIndex - 2].fT;
-        }
-
-        /// Need to subtract to compensate for the png loader flipping the Y-axis
-        currentMesh->mTextureCoords[0][currPointIndex] = {
-            sgdMeshData->astData[currPointIndex].fS,
-            1.0f - sgdMeshData->astData[currPointIndex].fT, 0.0f};
-      }
+      SetupMeshSt(pHead, sgdMeshData, currentMesh, currPointIndex);
 
       if (currPointIndex >= numPoint - 2)
       {
