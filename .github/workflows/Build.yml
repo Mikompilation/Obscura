@@ -41,5 +41,5 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: Obscura-nightly-build-${{ matrix.os }}
+        name: Obscura-nightly-build-${{matrix.os}}
         path: ${{runner.workspace}}/build
