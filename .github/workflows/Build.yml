@@ -67,9 +67,9 @@ jobs:
       if: ${{ matrix.sys.os == 'ubuntu-latest' }}
       working-directory: build
       run: |
-        zip -r Obscura_${{ matrix.sys.name }}_v${{ github.event.inputs.version }}.zip Obscura/*
+        zip -r Obscura_${{ matrix.sys.name }}.zip Obscura/*
 
     - uses: actions/upload-artifact@v4
       with:
-        name: Obscura-nightly-build-${{matrix.sys.os}}
-        path: build/Obscura_${{ matrix.sys.name }}_v${{ github.event.inputs.version }}.zip
+        name: Obscura-nightly-build-${{matrix.sys.name}}
+        path: build/Obscura_${{ matrix.sys.name }}.zip
