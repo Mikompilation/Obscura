@@ -15,6 +15,9 @@ Model::Model(std::filesystem::path filename)
   this->pakFile = (PK2_HEAD *) ReadFullFile(filename);
   this->scene = new aiScene();
   this->isCharacterModel = filename.extension() == ".mdl";
+
+  this->isMap = filename.filename().c_str()[0] == 'r';
+
   this->exportFolder = std::filesystem::current_path()
                        / filename.filename().replace_extension("");
   this->exportFilename =
@@ -44,7 +47,7 @@ void Model::ExtractModel()
     return;
   }
 
-  if (isCharacterModel)
+  if (this->isCharacterModel)
   {
     this->ReadTextures();
   }
@@ -211,6 +214,9 @@ void Model::ReadTextures()
     auto img =
         CreateTextureFromRawData(convertedTim2->Width, convertedTim2->Height,
                                  convertedTim2->image, ph->GsTex0.TBP0);
+    
+    delete[] convertedTim2->image;
+    delete convertedTim2;
     textures.emplace_back(img);
   }
 }
@@ -237,8 +243,10 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
                                 std::string materialName)
 {
   auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
-  
-  if (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1)
+
+  /// TODO: IMPROVE THIS CHECK: NEED BETTER TO IDENTIFY NEXT OFFSET; TB0 == 1 IS NOT RELIABLE
+  /// (pProcData->VUMeshData.GifTag.REGS0 == 1 && !this->isCharacterModel) && (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1)
+  if ((pProcData->VUMeshData.GifTag.REGS0 == 1 && !this->isCharacterModel) && (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1))
   {
     mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
   }
@@ -260,6 +268,12 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
       t = v;
       break;
     }
+  }
+
+  if (t == nullptr)
+  {
+    t = DownloadGsTexture(mesh_tex_reg);
+    this->textures.emplace_back(t);
   }
 
   if (t == nullptr && this->sgdMaterial->iMaterialIndex < this->textures.size())
@@ -444,12 +458,18 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
   auto rTexDesc = &pHead->TexDesc;
   
   this->previousTRI2FileHeader = pTRI2HeadTop;
-   
-  //rTexDesc->iNumTexture = gra3dGenerateTRI2FileFromVRAM(pTRI2HeadTop, &TRI2SizeData);
 
   for (auto i = 0; i < rTexDesc->iNumTexture; i++)
   {
-    this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
+    if (!this->isMap /*rTexDesc->iNumTexture > 2*/ )
+    {
+      this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
+    }
+    else
+    {
+      UploadGsTexture(pTRI2HeadTop, pHead);
+    }
+
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
   }

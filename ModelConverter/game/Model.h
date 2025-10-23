@@ -15,6 +15,7 @@ public:
     void ExtractModel();
 private:
     bool isCharacterModel;
+    bool isMap;
     std::filesystem::path exportFolder;
     std::filesystem::path exportFilename;
     PK2_HEAD* pakFile;

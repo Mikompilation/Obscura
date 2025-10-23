@@ -7,7 +7,8 @@ Texture *CreateTextureFromRawData(int width, int height, void *data, int address
     return nullptr;
   }
 
-  auto texture = new Texture(width, height, data);
+  auto img_data = new unsigned int[width*height];
+  auto texture = new Texture(width, height, img_data);
   texture->SetAddress(address);
 
   auto rawPixel = (unsigned int*) data;
@@ -26,7 +27,7 @@ Texture *CreateTextureFromRawData(int width, int height, void *data, int address
     {
       auto pixel = (RGBA*) &rawPixel[(i * width + k)];
       pixel->a = (char) (255.0f * (pixel->a / 128.0f));
-      rawPixel[(i * width + k)] = *(unsigned int*) pixel;
+      img_data[(i * width + k)] = *(unsigned int*) pixel;
     }
   }
 

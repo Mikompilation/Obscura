@@ -77,14 +77,14 @@ typedef struct {
 } sceGsBitbltbuf;
 
 typedef struct {
-    unsigned long long SSAX : 11;
+    unsigned long long SSAX : 11; /// Source X coordinate (in pixels) where the transfer begins. Range 0–2047.
     unsigned long long pad11 : 5;
-    unsigned long long SSAY : 11;
+    unsigned long long SSAY : 11; /// Source Y coordinate (in pixels) where the transfer begins. Range 0–2047.
     unsigned long long pad27 : 5;
-    unsigned long long DSAX : 11;
+    unsigned long long DSAX : 11; /// Destination X coordinate (in pixels) where the transfer begins. Range 0–2047.
     unsigned long long pad43 : 5;
-    unsigned long long DSAY : 11;
-    unsigned long long DIR : 2;
+    unsigned long long DSAY : 11; /// Destination Y coordinate (in pixels) where the transfer begins. Range 0–2047.
+    unsigned long long DIR : 2; /// X-axis direction: 0 = left→right, 1 = right→left. Y-axis direction: 0 = top→bottom, 1 = bottom→top.
     unsigned long long pad61 : 3;
 } sceGsTrxpos;
 
