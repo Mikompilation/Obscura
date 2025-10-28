@@ -16,8 +16,6 @@ Model::Model(std::filesystem::path filename)
   this->scene = new aiScene();
   this->isCharacterModel = filename.extension() == ".mdl";
 
-  this->isMap = filename.filename().c_str()[0] == 'r';
-
   this->exportFolder = std::filesystem::current_path()
                        / filename.filename().replace_extension("");
   this->exportFilename =
@@ -57,17 +55,7 @@ void Model::ExtractModel()
   this->ReadSGD(mdlPak);
   this->BuildScene();
 
-  auto exporterOptions =0;
-      aiProcess_ValidateDataStructure | aiProcess_EmbedTextures;
-
-  if (!this->isCharacterModel)
-  {
-    exporterOptions |= 0;
-  }
-  else
-  {
-    exporterOptions |= 0;
-  }
+  auto exporterOptions = aiProcess_ValidateDataStructure | aiProcess_EmbedTextures | aiProcess_OptimizeMeshes;
 
   ExportScene(exportFolder / this->exportFilename, "gltf2", scene,exporterOptions);
   ExportScene(exportFolder / this->exportFilename, "obj", scene,exporterOptions);
@@ -243,15 +231,9 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
                                 std::string materialName)
 {
   auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
-
-  /// TODO: IMPROVE THIS CHECK: NEED BETTER TO IDENTIFY NEXT OFFSET; TB0 == 1 IS NOT RELIABLE
-  /// (pProcData->VUMeshData.GifTag.REGS0 == 1 && !this->isCharacterModel) && (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1)
-  if ((pProcData->VUMeshData.GifTag.REGS0 == 1 && !this->isCharacterModel) && (mesh_tex_reg == nullptr || mesh_tex_reg->TBP0 == 1))
-  {
-    mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
-  }
+  auto mesh_tex_reg2 = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
   
-  programLogger->info("Texture Info: TB0 {:#x}", (int)mesh_tex_reg->TBP0);
+  programLogger->info("Texture Info: TB0 {:#x} or {:#x}", (int)mesh_tex_reg->TBP0, (int)mesh_tex_reg2->TBP0);
   
   auto matIndex = this->aiMaterials.size();
   Texture *t = nullptr;
@@ -263,7 +245,7 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
       continue;
     }
     
-    if (v->GetAddress() == mesh_tex_reg->TBP0)
+    if (v->GetAddress() == mesh_tex_reg->TBP0 || (!this->isCharacterModel && v->GetAddress() == mesh_tex_reg2->TBP0))
     {
       t = v;
       break;
@@ -272,6 +254,7 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
 
   if (t == nullptr)
   {
+    /// Should only happen when it is a texture in a room
     t = DownloadGsTexture(mesh_tex_reg);
     this->textures.emplace_back(t);
   }
@@ -461,14 +444,8 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
 
   for (auto i = 0; i < rTexDesc->iNumTexture; i++)
   {
-    if (!this->isMap /*rTexDesc->iNumTexture > 2*/ )
-    {
-      this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
-    }
-    else
-    {
-      UploadGsTexture(pTRI2HeadTop, pHead);
-    }
+    UploadGsTexture(pTRI2HeadTop, pHead);
+    //this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
 
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
