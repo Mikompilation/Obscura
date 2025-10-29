@@ -83,7 +83,13 @@ struct SGDVUMESHDATA_PRESET
   short int sOffsetToST;
   short int sOffsetToPrim;
   int aiPad1[2];
-  long int alData[1];
+  u8l alData[1];
+};
+
+struct SGDVUMESHTEXGIFTAG {
+  unsigned int auiVifCode[2]; // G3DVIF1CODE
+  unsigned int auiGifTag[4]; //
+  u8l aulData[2];
 };
 
 struct _SGDVUVNDATA_WEIGHTED_3

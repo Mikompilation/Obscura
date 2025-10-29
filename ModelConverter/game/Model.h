@@ -12,6 +12,7 @@
 class Model {
 public:
     Model(std::filesystem::path filename);
+    ~Model();
     void ExtractModel();
 private:
     bool isCharacterModel;

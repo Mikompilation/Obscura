@@ -234,6 +234,16 @@ typedef struct {
     unsigned long long pad44 : 20;
 } sceGsTex1;
 
+typedef struct { // 0x8
+  /* 0x0:0 */ long long unsigned WMS : 2;
+  /* 0x0:2 */ long long unsigned WMT : 2;
+  /* 0x0:4 */ long long unsigned MINU : 10;
+  /* 0x1:6 */ long long unsigned MAXU : 10;
+  /* 0x3:0 */ long long unsigned MINV : 10;
+  /* 0x4:2 */ long long unsigned MAXV : 10;
+  /* 0x5:4 */ long long unsigned pad44 : 20;
+} sceGsClamp;
+
 struct sceGsLoadImage{
     sceGifTag giftag0;
     sceGsBitbltbuf bitbltbuf;
@@ -245,6 +255,32 @@ struct sceGsLoadImage{
     sceGsTrxdir trxdir;
     unsigned long long trxdiraddr;
     sceGifTag giftag1;
+};
+
+typedef struct {
+  unsigned long long pad00;
+} sceGsTexflush;
+
+struct sceGsTexEnv { // 0x40
+  /* 0x00 */ sceGsTexflush texflush;
+  /* 0x08 */ long long texflushaddr;
+  /* 0x10 */ sceGsTex1 tex11;
+  /* 0x18 */ long long tex11addr;
+  /* 0x20 */ sceGsTex0 tex01;
+  /* 0x28 */ long long tex01addr;
+  /* 0x30 */ sceGsClamp clamp1;
+  /* 0x38 */ long long clamp1addr;
+};
+
+struct sceGsTexEnv2 { // 0x40
+  /* 0x00 */ sceGsTexflush texflush;
+  /* 0x08 */ long long texflushaddr;
+  /* 0x10 */ sceGsTex1 tex12;
+  /* 0x18 */ long long tex12addr;
+  /* 0x20 */ sceGsTex0 tex02;
+  /* 0x28 */ long long tex02addr;
+  /* 0x30 */ sceGsClamp clamp2;
+  /* 0x38 */ long long clamp2addr;
 };
 
 enum VIFCodeType : unsigned int

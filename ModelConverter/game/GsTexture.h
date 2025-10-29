@@ -157,7 +157,6 @@ class GSHelper {
 
 inline static GSHelper gsHelper;
 
-Texture *LoadTim2GsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop);
 void UploadGsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop, SGDPROCUNITHEADER *pHead);
 Texture *DownloadGsTexture(sceGsTex0* pMeshTexReg);
 

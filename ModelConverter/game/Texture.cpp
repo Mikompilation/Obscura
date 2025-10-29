@@ -34,6 +34,11 @@ Texture *CreateTextureFromRawData(int width, int height, void *data, int address
   return texture;
 }
 
+Texture::~Texture()
+{
+  delete[] (unsigned int*)this->RawData;
+}
+
 Texture::Texture(int width, int height, void* rawData)
 {
   this->Width = width;

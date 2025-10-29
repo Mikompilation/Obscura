@@ -24,6 +24,23 @@ Model::Model(std::filesystem::path filename)
   std::filesystem::create_directories(exportFolder);
 }
 
+Model::~Model()
+{
+  //delete[] this->pakFile;
+
+  for (auto v : textures)
+  {
+    if (v == nullptr)
+    {
+      continue;
+    }
+
+    //delete v;
+  }
+
+  //delete this->scene;
+}
+
 void Model::ExtractModel()
 {
   auto mdlPak = (PK2_HEAD *) GetFileInPak(this->pakFile, 0);
@@ -45,10 +62,7 @@ void Model::ExtractModel()
     return;
   }
 
-  if (this->isCharacterModel)
-  {
-    this->ReadTextures();
-  }
+  this->ReadTextures();
   
   this->CreateModelNodes();
   this->CalculateBoneTransforms();
@@ -205,7 +219,7 @@ void Model::ReadTextures()
     
     delete[] convertedTim2->image;
     delete convertedTim2;
-    textures.emplace_back(img);
+    this->textures.emplace_back(img);
   }
 }
 
@@ -231,9 +245,14 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
                                 std::string materialName)
 {
   auto mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x18);
-  auto mesh_tex_reg2 = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
+
+  /// Checks if only the texture is being transfered
+  if (pProcData->VUMeshData.GifTag.NREG == 6)
+  {
+    mesh_tex_reg = RelOffsetToPtr<sceGsTex0>(pProcData, 0x28);
+  }
   
-  programLogger->info("Texture Info: TB0 {:#x} or {:#x}", (int)mesh_tex_reg->TBP0, (int)mesh_tex_reg2->TBP0);
+  programLogger->info("Texture Info: TB0 {:#x}", (int)mesh_tex_reg->TBP0);
   
   auto matIndex = this->aiMaterials.size();
   Texture *t = nullptr;
@@ -245,7 +264,7 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
       continue;
     }
     
-    if (v->GetAddress() == mesh_tex_reg->TBP0 || (!this->isCharacterModel && v->GetAddress() == mesh_tex_reg2->TBP0))
+    if (v->GetAddress() == mesh_tex_reg->TBP0)
     {
       t = v;
       break;
@@ -254,7 +273,6 @@ int Model::ReadTex0TextureIndex(SGDPROCUNITDATA *pProcData,
 
   if (t == nullptr)
   {
-    /// Should only happen when it is a texture in a room
     t = DownloadGsTexture(mesh_tex_reg);
     this->textures.emplace_back(t);
   }
@@ -445,7 +463,6 @@ void Model::HandleTri2DataBlock(SGDPROCUNITHEADER *pHead)
   for (auto i = 0; i < rTexDesc->iNumTexture; i++)
   {
     UploadGsTexture(pTRI2HeadTop, pHead);
-    //this->textures.emplace_back(LoadTim2GsTexture(pTRI2HeadTop));
 
     pTRI2HeadTop = RelOffsetToPtr<SGDTRI2FILEHEADER>(
         &pTRI2HeadTop->gsli, pTRI2HeadTop->uiVif1Code_DIRECT.size * 0x10);
@@ -481,9 +498,15 @@ void Model::HandleMeshDataBlock(SGDPROCUNITHEADER *pHead)
 
     unsigned int numPoint = isIMT_2 ? pVMCD->VifUnpack.NUM : pMeshInfo[i].uiPointNum;
 
-    if (numPoint == 0)
+    if (numPoint == 0 || numPoint == 1)
     {
       continue;
+    }
+
+    if (numPoint == 0xc0c0c0c0 || numPoint > 0x1000)
+    {
+      programLogger->critical("Num points is invalid, something has gone terribly wrong: {:#x}", numPoint);
+      break;
     }
 
     auto currentMesh = CreateNewMesh(numPoint, matIndex);

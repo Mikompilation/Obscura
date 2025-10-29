@@ -2,6 +2,7 @@
 
 class Texture{
  public:
+  ~Texture();
   Texture(int width, int height, void* rawData);
   int GetWidth();
   int GetHeight();

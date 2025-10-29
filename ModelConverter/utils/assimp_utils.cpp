@@ -29,7 +29,16 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     m->mNormals = new aiVector3D[m->mNumVertices];
     m->mTextureCoords[0] = new aiVector3D[m->mNumVertices];
     m->mNumUVComponents[0] = 2;
-    m->mNumFaces = numPoints - 2;
+
+    if (numPoints <= 2)
+    {
+      m->mNumFaces = numPoints;
+    }
+    else
+    {
+      m->mNumFaces = numPoints - 2;
+    }
+
     m->mFaces = new aiFace[m->mNumFaces];
 
     //m->mAABB = aiAABB();
