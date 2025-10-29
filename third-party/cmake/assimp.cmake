@@ -19,7 +19,7 @@ set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "Enable GLTF importer" FORCE)
 FetchContent_Declare(
         assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
-        GIT_TAG v5.3.1
+        GIT_TAG v6.0.2
 )
 
 FetchContent_MakeAvailable(assimp)
