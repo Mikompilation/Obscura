@@ -65,7 +65,14 @@ void UploadGsTexture(SGDTRI2FILEHEADER *pTRI2HeadTop, SGDPROCUNITHEADER *pHead)
 }
 
 Texture* DownloadGsTexture(sceGsTex0* pMeshTexReg) {
+  if (pMeshTexReg == nullptr)
+  {
+    return nullptr;
+  }
+
   std::vector<uint8_t> img;
+  const int width = 1 << pMeshTexReg->TW;
+  const int height = 1 << pMeshTexReg->TH;
 
   switch (pMeshTexReg->PSM)
   {
@@ -73,14 +80,14 @@ Texture* DownloadGsTexture(sceGsTex0* pMeshTexReg) {
       img = gsHelper.DownloadPSMCT32(
         pMeshTexReg->TBP0, pMeshTexReg->TBW,
         0, 0,
-        1<<pMeshTexReg->TW, 1<<pMeshTexReg->TH
+        width, height
       );
       break;
     case PSMT4:
       img = gsHelper.DownloadImagePSMT4(
         pMeshTexReg->TBP0, pMeshTexReg->TBW,
         0, 0,
-        1<<pMeshTexReg->TW, 1<<pMeshTexReg->TH,
+        width, height,
         pMeshTexReg->CBP, pMeshTexReg->TBW,
         pMeshTexReg->CSA, -1
         );
@@ -89,14 +96,19 @@ Texture* DownloadGsTexture(sceGsTex0* pMeshTexReg) {
       img = gsHelper.DownloadImagePSMT8(
         pMeshTexReg->TBP0, pMeshTexReg->TBW,
         0, 0,
-        1<<pMeshTexReg->TW, 1<<pMeshTexReg->TH,
+        width, height,
         pMeshTexReg->CBP, pMeshTexReg->TBW,
         -1
         );
       break;
   }
 
-  return CreateTextureFromRawData(1<<pMeshTexReg->TW, 1<<pMeshTexReg->TH, img.data(), pMeshTexReg->TBP0);
+  if (img.empty())
+  {
+    return nullptr;
+  }
+
+  return CreateTextureFromRawData(width, height, img.data(), pMeshTexReg->TBP0);
 }
 
 namespace {

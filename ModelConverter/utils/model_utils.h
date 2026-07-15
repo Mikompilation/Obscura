@@ -5,7 +5,8 @@
 #include "game/sgd_types.h"
 
 bool ShouldParseMesh(SGDPROCUNITHEADER *pHead);
-SGDVUMESHSTDATA* GetMeshSTData(SGDPROCUNITHEADER *pHead, SGDPROCUNITDATA *pProcData, SGDVUMESHPOINTNUM *pMeshInfo, bool isIMT_2);
+bool IsPresetMesh(SGDPROCUNITHEADER *pHead);
+SGDVUMESHSTDATA* GetMeshSTData(SGDPROCUNITHEADER *pHead, SGDPROCUNITDATA *pProcData, SGDVUMESHPOINTNUM *pMeshInfo, bool isPresetMesh);
 
 void SetupMeshSt(SGDPROCUNITHEADER *pHead, SGDVUMESHSTDATA *pMD, aiMesh *pMesh, unsigned int currPointIndex);
 

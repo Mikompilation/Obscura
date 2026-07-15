@@ -6,6 +6,33 @@
 #include "logging.h"
 #include "assimp/cimport.h"
 
+namespace {
+float Clamp01(float value)
+{
+    if (value < 0.0f)
+    {
+        return 0.0f;
+    }
+
+    if (value > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    return value;
+}
+
+float ConvertPS2Alpha(float alpha)
+{
+    if (alpha <= 127.0f)
+    {
+        return Clamp01((alpha * 2.0f) / 255.0f);
+    }
+
+    return 1.0f;
+}
+}
+
 int GetNumberOfParents(aiNode* n)
 {
     int numParents = 0;
@@ -30,16 +57,8 @@ aiMesh *CreateNewMesh(unsigned int numPoints, int matIndex) {
     m->mTextureCoords[0] = new aiVector3D[m->mNumVertices];
     m->mNumUVComponents[0] = 2;
 
-    if (numPoints <= 2)
-    {
-      m->mNumFaces = numPoints;
-    }
-    else
-    {
-      m->mNumFaces = numPoints - 2;
-    }
-
-    m->mFaces = new aiFace[m->mNumFaces];
+    m->mNumFaces = numPoints >= 3 ? numPoints - 2 : 0;
+    m->mFaces = m->mNumFaces > 0 ? new aiFace[m->mNumFaces] : nullptr;
 
     //m->mAABB = aiAABB();
     //m->mAABB.mMin = aiVector3D(boundingBoxMin.x, boundingBoxMin.y, boundingBoxMin.z);
@@ -53,7 +72,7 @@ aiMaterial *FindMaterial(const std::vector<aiMaterial *>& materials, const std::
 
     for(auto i = 0; i < materials.size(); i++)
     {
-        if (std::string(materials[i]->GetName().C_Str()).substr(0, name.length()) == name)
+        if (std::string(materials[i]->GetName().C_Str()) == name)
         {
             currentMaterial = materials[i];
             *matIndex = i;
@@ -67,19 +86,20 @@ aiMaterial *FindMaterial(const std::vector<aiMaterial *>& materials, const std::
 aiMaterial *CreateNewMaterial(std::filesystem::path exportFolder, const std::string &name, Texture *t, SGDMATERIAL *pMaterial) {
     auto s = aiString(name);
     auto currentMaterial = new aiMaterial();
+    int twoSided = 1;
 
     currentMaterial->AddProperty(&s,  AI_MATKEY_NAME);
+    currentMaterial->AddProperty(&twoSided, 1, AI_MATKEY_TWOSIDED);
 
-    // Scale the float value for W
-    pMaterial->vDiffuse.w =  255.0f * pMaterial->vDiffuse.w  / 128.0f;
-    pMaterial->vAmbient.w =  255.0f * pMaterial->vAmbient.w  / 128.0f;
-    pMaterial->vEmission.w = 255.0f * pMaterial->vEmission.w / 128.0f;
-    pMaterial->vSpecular.w = 255.0f * pMaterial->vSpecular.w / 128.0f;
+    auto alpha = pMaterial != nullptr ? ConvertPS2Alpha(pMaterial->vDiffuse.w) : 1.0f;
+    aiColor4D neutral(1.0f, 1.0f, 1.0f, alpha);
+    aiColor4D black(0.0f, 0.0f, 0.0f, alpha);
 
-    currentMaterial->AddProperty(&pMaterial->vDiffuse, 1, AI_MATKEY_COLOR_DIFFUSE);
-    currentMaterial->AddProperty(&pMaterial->vAmbient, 1, AI_MATKEY_COLOR_AMBIENT);
-    currentMaterial->AddProperty(&pMaterial->vEmission, 1, AI_MATKEY_COLOR_EMISSIVE);
-    currentMaterial->AddProperty(&pMaterial->vSpecular, 1, AI_MATKEY_COLOR_SPECULAR);
+    currentMaterial->AddProperty(&neutral, 1, AI_MATKEY_COLOR_DIFFUSE);
+    currentMaterial->AddProperty(&black, 1, AI_MATKEY_COLOR_AMBIENT);
+    currentMaterial->AddProperty(&black, 1, AI_MATKEY_COLOR_EMISSIVE);
+    currentMaterial->AddProperty(&black, 1, AI_MATKEY_COLOR_SPECULAR);
+    currentMaterial->AddProperty(&alpha, 1, AI_MATKEY_OPACITY);
 
     if (t == nullptr)
     {

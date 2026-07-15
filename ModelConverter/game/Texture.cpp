@@ -1,5 +1,17 @@
 #include "Texture.h"
 
+namespace {
+unsigned char AdjustPS2Alpha(unsigned char alpha)
+{
+  if (alpha <= 127)
+  {
+    return static_cast<unsigned char>(alpha << 1);
+  }
+
+  return 0xFF;
+}
+}
+
 Texture *CreateTextureFromRawData(int width, int height, void *data, int address)
 {
   if (width <= 0 || height <= 0 || data == nullptr)
@@ -25,9 +37,9 @@ Texture *CreateTextureFromRawData(int width, int height, void *data, int address
   {
     for (auto k = 0; k < width; k++)
     {
-      auto pixel = (RGBA*) &rawPixel[(i * width + k)];
-      pixel->a = (char) (255.0f * (pixel->a / 128.0f));
-      img_data[(i * width + k)] = *(unsigned int*) pixel;
+      auto pixel = *(RGBA*) &rawPixel[(i * width + k)];
+      pixel.a = AdjustPS2Alpha(pixel.a);
+      img_data[(i * width + k)] = *(unsigned int*) &pixel;
     }
   }
 

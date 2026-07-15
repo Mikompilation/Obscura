@@ -373,7 +373,10 @@ inline auto get_data(Container& c) -> typename Container::value_type* {
   return c.data();
 }
 
-#if defined(_SECURE_SCL) && _SECURE_SCL
+// Newer MSVC STL versions no longer expose stdext::checked_array_iterator
+// consistently to this bundled fmt release, so use fmt's raw-pointer path.
+#if defined(_SECURE_SCL) && _SECURE_SCL && \
+    !(defined(_MSC_VER) && _MSC_VER >= 1930)
 // Make a checked iterator to avoid MSVC warnings.
 template <typename T> using checked_ptr = stdext::checked_array_iterator<T*>;
 template <typename T>

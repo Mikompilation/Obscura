@@ -18,9 +18,16 @@ bool ShouldParseMesh(SGDPROCUNITHEADER *pHead)
   return true;
 }
 
-SGDVUMESHSTDATA *GetMeshSTData(SGDPROCUNITHEADER *pHead, SGDPROCUNITDATA *pProcData, SGDVUMESHPOINTNUM *pMeshInfo, bool isIMT_2)
+bool IsPresetMesh(SGDPROCUNITHEADER *pHead)
 {
-  if (isIMT_2)
+  return pHead->VUMeshDesc.ucMeshType == iMT_0
+         || pHead->VUMeshDesc.ucMeshType == iMT_2
+         || pHead->VUMeshDesc.ucMeshType == iMT_2F;
+}
+
+SGDVUMESHSTDATA *GetMeshSTData(SGDPROCUNITHEADER *pHead, SGDPROCUNITDATA *pProcData, SGDVUMESHPOINTNUM *pMeshInfo, bool isPresetMesh)
+{
+  if (isPresetMesh)
   {
     return RelOffsetToPtr<SGDVUMESHSTDATA>(pProcData, (pProcData->VUMeshData_Preset.sOffsetToST - 1) * 4);
   }
@@ -38,15 +45,18 @@ void SetupMeshSt(SGDPROCUNITHEADER *pHead, SGDVUMESHSTDATA *pMD, aiMesh *pMesh, 
   {
     /// Sometimes the value is 0x1, so using the previous value seems to work
     /// If this is removed, it break the entire texture mapping UV
-    if (((Vector2i *) (pMD->astData))[currPointIndex].y == 0x1)
+    if (currPointIndex >= 2
+        && ((Vector2i *) (pMD->astData))[currPointIndex].y == 0x1)
     {
       pMD->astData[currPointIndex].fT =
           pMD->astData[currPointIndex - 2].fT;
     }
     
-    /// Need to subtract to compensate for the png loader flipping the Y-axis
+    /// Keep the original PS2 ST convention. MikuPan's native mesh renderer
+    /// uploads the same values directly, and the glTF path should sample the
+    /// extracted textures with matching coordinates.
     pMesh->mTextureCoords[0][currPointIndex] = {
         pMD->astData[currPointIndex].fS,
-        1.0f - pMD->astData[currPointIndex].fT, 0.0f};
+        pMD->astData[currPointIndex].fT, 0.0f};
   }
 }
